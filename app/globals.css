@@ -1,0 +1,67 @@
+/* app/globals.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg:    #080c11;
+  --bg2:   #0a0e14;
+  --bg3:   #0d1420;
+  --green: #00ff88;
+  --amber: #ffaa00;
+  --red:   #ff4444;
+  --blue:  #7aa3d4;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: #c8d6e5;
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  min-height: 100vh;
+}
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar-thumb { background: #1e3a5f; border-radius: 2px; }
+
+/* Utility classes used across components */
+.font-display { font-family: 'Bebas Neue', sans-serif; }
+
+@layer components {
+  .card {
+    @apply bg-bg3 border border-border rounded-lg p-5;
+  }
+  .btn {
+    @apply bg-transparent border border-border text-muted px-3 py-2 rounded
+           text-xs tracking-widest uppercase cursor-pointer transition-all
+           hover:border-blue hover:text-white font-mono;
+  }
+  .btn-primary {
+    @apply bg-green text-bg border-none rounded px-4 py-3 text-sm font-semibold
+           tracking-widest uppercase cursor-pointer transition-all hover:bg-green/80
+           font-mono w-full;
+  }
+  .btn-ghost {
+    @apply bg-transparent border border-green text-green rounded px-4 py-3 text-sm
+           font-semibold tracking-widest uppercase cursor-pointer transition-all
+           hover:bg-green/10 font-mono w-full;
+  }
+  .input {
+    @apply bg-bg3 border border-border rounded text-white px-3 py-2.5 text-sm
+           font-mono w-full outline-none transition-colors focus:border-green;
+  }
+  .label {
+    @apply block text-xs text-dim tracking-widest uppercase mb-1.5 font-mono;
+  }
+  .stat-label {
+    @apply text-[10px] text-dim tracking-[3px] uppercase mb-2;
+  }
+  .stat-value {
+    @apply font-display text-2xl tracking-wide;
+  }
+  .stat-sub {
+    @apply text-xs text-muted mt-1;
+  }
+}
