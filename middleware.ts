@@ -1,4 +1,3 @@
-// middleware.ts — Next.js 16 compatible
 import { type NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
@@ -41,8 +40,8 @@ export const config = {
 }
 ```
 
-Save the file (**Ctrl+S**), close Notepad, then run these three commands in Command Prompt one at a time:
+Save (**Ctrl+S**), close Notepad, then in Command Prompt:
 ```
-git add .
-git commit -m "fix middleware for Next.js 16"
+git add middleware.ts
+git commit -m "fix middleware clean"
 git push
