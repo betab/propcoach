@@ -1,4 +1,4 @@
-'use client'
+ï»¿'use client'
 import { useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -35,7 +35,7 @@ export default function LoginPage() {
             </div>
             <div>
               <label className='label'>Password</label>
-              <input type='password' value={password} onChange={e => setPassword(e.target.value)} className='input' placeholder='••••••••' required />
+              <input type='password' value={password} onChange={e => setPassword(e.target.value)} className='input' placeholder='password' required />
             </div>
             {error && <p className='text-xs text-danger'>{error}</p>}
             <button type='submit' className='btn-primary' disabled={loading}>{loading ? 'Signing in...' : 'Sign In'}</button>
