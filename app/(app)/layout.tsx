@@ -33,9 +33,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <span className="text-xs text-muted hidden sm:block">
             {profile?.display_name || user.email}
           </span>
-          <form action="/api/auth/signout" method="POST">
-            <button className="btn text-xs">Sign Out</button>
-          </form>
+          <SignOutButton />
         </div>
       </header>
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
