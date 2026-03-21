@@ -9,7 +9,7 @@ function fmt(n: number)  { return (n < 0 ? '-$' : '$') + Math.abs(Math.round(n))
 function fmtS(n: number) { return (n > 0 ? '+$' : n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString() }
 
 export default async function AccountPage({ params }: { params: { id: string } }) {
-  const supabase = createClient()
+  const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 

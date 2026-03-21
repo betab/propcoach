@@ -10,7 +10,7 @@ function fmt(n: number) {
 }
 
 async function AccountCard({ account }: { account: Account }) {
-  const supabase = createClient()
+  const supabase = await createClient()
   const { data: entries } = await supabase
     .from('entries')
     .select('*')
@@ -84,7 +84,7 @@ async function AccountCard({ account }: { account: Account }) {
 }
 
 export default async function DashboardPage() {
-  const supabase = createClient()
+  const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   const { data: profile }  = await supabase.from('profiles').select('plan').eq('id', user!.id).single()
@@ -147,3 +147,4 @@ export default async function DashboardPage() {
     </div>
   )
 }
+
