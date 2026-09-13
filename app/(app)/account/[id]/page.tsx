@@ -49,12 +49,23 @@ export default async function AccountPage({ params }: { params: { id: string } }
           </div>
           <h1 className="font-display text-3xl tracking-[3px] text-white">
             {account.nickname || `${(account.size/1000).toFixed(0)}K ACCOUNT`}
+            {account.status !== 'active' && (
+              <span
+                className={`ml-3 align-middle text-xs tracking-widest uppercase px-2 py-1 rounded border ${
+                  account.status === 'passed'
+                    ? 'border-green text-green bg-green/10'
+                    : 'border-danger text-danger bg-danger/10'
+                }`}
+              >
+                {account.status}
+              </span>
+            )}
           </h1>
           {account.account_number && (
             <p className="text-xs text-muted mt-0.5">{account.account_number}</p>
           )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Link href={`/account/${account.id}/history`} className="btn">📋 History</Link>
           <Link
             href={`/account/${account.id}/log`}
@@ -62,6 +73,27 @@ export default async function AccountPage({ params }: { params: { id: string } }
           >
             ✏️ Log Session
           </Link>
+          {account.status === 'active' ? (
+            <>
+              <form action={`/api/accounts/${account.id}/status`} method="POST">
+                <input type="hidden" name="status" value="passed" />
+                <button type="submit" className="btn border-green text-green hover:bg-green/10">
+                  ✓ Mark Passed
+                </button>
+              </form>
+              <form action={`/api/accounts/${account.id}/status`} method="POST">
+                <input type="hidden" name="status" value="breached" />
+                <button type="submit" className="btn border-danger text-danger hover:bg-danger/10">
+                  ✕ Mark Breached
+                </button>
+              </form>
+            </>
+          ) : (
+            <form action={`/api/accounts/${account.id}/status`} method="POST">
+              <input type="hidden" name="status" value="active" />
+              <button type="submit" className="btn">↺ Reactivate</button>
+            </form>
+          )}
         </div>
       </div>
 

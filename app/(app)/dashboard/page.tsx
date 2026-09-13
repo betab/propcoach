@@ -38,8 +38,19 @@ async function AccountCard({ account }: { account: Account }) {
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <div>
-            <div className="text-xs text-dim tracking-widest uppercase mb-1">
+            <div className="text-xs text-dim tracking-widest uppercase mb-1 flex items-center gap-2">
               {firmMeta?.name || account.firm_id}
+              {account.status !== 'active' && (
+                <span
+                  className={`text-[9px] px-1.5 py-0.5 rounded border normal-case tracking-wide ${
+                    account.status === 'passed'
+                      ? 'border-green text-green bg-green/10'
+                      : 'border-danger text-danger bg-danger/10'
+                  }`}
+                >
+                  {account.status}
+                </span>
+              )}
             </div>
             <div className="font-display text-xl tracking-wide text-white">
               {account.nickname || `${(account.size/1000).toFixed(0)}K Account`}
@@ -95,8 +106,9 @@ export default async function DashboardPage() {
     .eq('is_active', true)
     .order('created_at', { ascending: true })
 
-  const isPro     = profile?.plan === 'pro'
-  const canAdd    = isPro || (accounts?.length || 0) < 1
+  const isPro       = profile?.plan === 'pro'
+  const activeCount = accounts?.filter(a => a.status === 'active').length || 0
+  const canAdd      = isPro || activeCount < 1
 
   return (
     <div>
