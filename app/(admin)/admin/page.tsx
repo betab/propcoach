@@ -27,9 +27,14 @@ export default async function AdminOverviewPage() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="font-display text-3xl tracking-[3px] text-white">FIRMS</h1>
-        <p className="text-xs text-muted mt-1">{firms?.length || 0} firms registered</p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="font-display text-3xl tracking-[3px] text-white">FIRMS</h1>
+          <p className="text-xs text-muted mt-1">{firms?.length || 0} firms registered</p>
+        </div>
+        <Link href="/admin/firms/new" className="btn border-amber text-amber hover:bg-amber/10">
+          + Add Firm
+        </Link>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">

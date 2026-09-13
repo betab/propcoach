@@ -1,0 +1,62 @@
+// lib/admin-firm-rule-form.ts
+// Shared field parsing for the two admin routes that write firm_rule_sizes
+// rows (create + supersede) — same form shape, same validation, avoids
+// duplicating this across both.
+
+export interface ParsedFirmRuleSize {
+  accountSize: number
+  drawdownType: string
+  drawdownAmount: number
+  dailyLossLimit: number | null
+  safetyNetBuffer: number
+  mllLockBuffer: number
+  qualifyingDayMin: number
+  minQualifyingDays: number
+  maxContracts: number
+  consistencyRulePct: number
+  payoutLadder: number[]
+  minPayout: number
+  effectiveFrom: string
+}
+
+export function parseFirmRuleSizeForm(formData: FormData): ParsedFirmRuleSize | { error: string } {
+  const accountSize = Number(formData.get('account_size'))
+  const drawdownType = String(formData.get('drawdown_type') || '')
+  const drawdownAmount = Number(formData.get('drawdown_amount'))
+  const dllRaw = String(formData.get('daily_loss_limit') || '').trim()
+  const dailyLossLimit = dllRaw === '' ? null : Number(dllRaw)
+  const safetyNetBuffer = Number(formData.get('safety_net_buffer') || 100)
+  const mllLockBuffer = Number(formData.get('mll_lock_buffer') || 100)
+  const qualifyingDayMin = Number(formData.get('qualifying_day_min') || 0)
+  const minQualifyingDays = Number(formData.get('min_qualifying_days') || 0)
+  const maxContracts = Number(formData.get('max_contracts'))
+  const consistencyRulePct = Number(formData.get('consistency_rule_pct') || 0)
+  const minPayout = Number(formData.get('min_payout') || 0)
+  const effectiveFrom = String(formData.get('effective_from') || '').trim()
+  const ladderRaw = String(formData.get('payout_ladder') || '').trim()
+
+  if (!accountSize || !drawdownType || !drawdownAmount || !maxContracts || !effectiveFrom) {
+    return { error: 'Account size, drawdown type, drawdown amount, max contracts, and effective date are required.' }
+  }
+  if (!['trailing_eod', 'trailing_intraday', 'static'].includes(drawdownType)) {
+    return { error: 'Invalid drawdown type.' }
+  }
+
+  let payoutLadder: number[] = []
+  if (ladderRaw) {
+    payoutLadder = ladderRaw.split(',').map(s => Number(s.trim()))
+    if (payoutLadder.some(n => isNaN(n))) {
+      return { error: 'Payout ladder must be a comma-separated list of numbers, e.g. 1000,1250,1500.' }
+    }
+  }
+
+  if (dllRaw !== '' && isNaN(dailyLossLimit as number)) {
+    return { error: 'Daily loss limit must be a number, or left blank for no DLL.' }
+  }
+
+  return {
+    accountSize, drawdownType, drawdownAmount, dailyLossLimit, safetyNetBuffer, mllLockBuffer,
+    qualifyingDayMin, minQualifyingDays, maxContracts, consistencyRulePct, payoutLadder, minPayout,
+    effectiveFrom,
+  }
+}
