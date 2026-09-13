@@ -1,0 +1,35 @@
+-- supabase/migrations/004_lock_down_profile_columns.sql
+-- ─────────────────────────────────────────────────────────────────────────────
+-- URGENT SECURITY FIX. Confirmed live and exploitable against production
+-- before writing this migration.
+--
+-- "Users can update own profile" (001_initial.sql) is a row-ownership-only
+-- RLS policy (`auth.uid() = id`) with no column restriction. RLS governs
+-- ROWS, not COLUMNS — column access is a separate privilege layer that this
+-- project never configured, so Supabase's default broad table grant to the
+-- `authenticated` role means any logged-in user can update ANY column on
+-- their own profiles row, including:
+--
+--   - role   — self-promote to 'admin' or 'super_admin' (added in
+--              003_firm_rules_db.sql for the admin dashboard)
+--   - plan   — self-upgrade to 'pro' for free, bypassing Stripe entirely
+--              (pre-existing since 001_initial.sql, unrelated to the admin
+--              work — found while auditing the same policy)
+--
+-- Both confirmed exploitable via a single authenticated REST call using
+-- only the public anon key.
+--
+-- Fix: revoke blanket UPDATE on profiles from `authenticated`, then grant
+-- it back only on the columns a user should legitimately self-edit.
+-- stripe_customer_id stays writable by the user themselves — set during
+-- their own checkout flow (app/api/stripe/checkout/route.ts) by the
+-- authenticated user's own request, a legitimate self-write. role, plan,
+-- and stripe_subscription_id are no longer directly user-writable at all —
+-- role changes go through a service-role admin route (a later PR); plan/
+-- stripe_subscription_id are meant to be set only by the Stripe webhook,
+-- which needs a separate fix (service-role client) to actually work at
+-- all, tracked separately from this security patch.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+REVOKE UPDATE ON profiles FROM authenticated;
+GRANT UPDATE (display_name, stripe_customer_id) ON profiles TO authenticated;
