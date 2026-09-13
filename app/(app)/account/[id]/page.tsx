@@ -2,7 +2,7 @@
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import { getFirmRules } from '@/lib/firms'
+import { getFirmConfigForAccount, derive, buildCoaching } from '@/lib/firms'
 import type { Entry } from '@/lib/firms/types'
 
 function fmt(n: number)  { return (n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString() }
@@ -31,10 +31,9 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
 
   const entries = (rawEntries || []) as Entry[]
 
-  const rules  = getFirmRules(account.firm_id)
-  const config = rules.getConfig(account.size, account.drawdown_type, account.version)
-  const m      = rules.derive(config, entries, account.payout_count)
-  const coach  = rules.buildCoaching(config, m, entries, account.payout_count)
+  const config = await getFirmConfigForAccount(supabase, account)
+  const m      = derive(config, entries, account.payout_count)
+  const coach  = buildCoaching(config, m, entries, account.payout_count)
 
   const bufColor = m.buffer < 500 ? '#ff4444' : m.buffer < 1200 ? '#ffaa00' : '#00ff88'
 

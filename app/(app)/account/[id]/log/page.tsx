@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { getFirmRules } from '@/lib/firms'
-import type { Entry, Account } from '@/lib/firms/types'
+import { getFirmConfigForAccount } from '@/lib/firms'
+import type { Entry, Account, AccountConfig } from '@/lib/firms/types'
 
 function fmt(n: number)  { return (n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString() }
 function fmtS(n: number) { return (n > 0 ? '+$' : n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString() }
@@ -17,6 +17,7 @@ export default function LogSessionPage() {
   const accountId = params.id as string
 
   const [account,  setAccount]  = useState<Account | null>(null)
+  const [config,   setConfig]   = useState<AccountConfig | null>(null)
   const [entries,  setEntries]  = useState<Entry[]>([])
   const [date,     setDate]     = useState(new Date().toISOString().slice(0, 10))
   const [balance,  setBalance]  = useState('')
@@ -34,6 +35,13 @@ export default function LogSessionPage() {
         .from('entries').select('*').eq('account_id', accountId).order('date', { ascending: true })
       setAccount(acc as Account)
       setEntries((ent || []) as Entry[])
+      if (acc) {
+        try {
+          setConfig(await getFirmConfigForAccount(supabase, acc as Account))
+        } catch {
+          setConfig(null)
+        }
+      }
     }
     load()
   }, [accountId])
@@ -45,12 +53,10 @@ export default function LogSessionPage() {
 
   // Update hint when balance input changes
   useEffect(() => {
-    if (!account || !balance) { setHint(null); return }
+    if (!config || !balance) { setHint(null); return }
     const entered = parseFloat(balance)
     if (isNaN(entered)) { setHint(null); return }
     const pnl = entered - currentBalance
-    const rules  = getFirmRules(account.firm_id)
-    const config = rules.getConfig(account.size, account.drawdown_type, account.version)
     if (pnl >= config.qualifyingDayMin) {
       setHint({ text: `${fmtS(pnl)} P&L · ✅ Qualifying day ($${config.qualifyingDayMin}+)`, color: '#00ff88' })
     } else if (pnl >= 0) {
@@ -58,7 +64,7 @@ export default function LogSessionPage() {
     } else {
       setHint({ text: `${fmtS(pnl)} P&L · ❌ Loss day`, color: '#ff4444' })
     }
-  }, [balance, currentBalance, account])
+  }, [balance, currentBalance, config])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()

@@ -1,0 +1,80 @@
+// lib/firms/shared/derive.ts
+// ─────────────────────────────────────────────────────────────────────────────
+// The core drawdown/payout math. Firm-agnostic — every firm uses this same
+// derive() against its own DB-backed AccountConfig. Moved here verbatim from
+// the old lib/firms/apex/rules.ts (it never had any Apex-specific constants
+// baked in), with one fix: payoutEligible now also requires the account to
+// have logged at least config.minQualifyingDays qualifying days — previously
+// there was no such gate at all (Milestone 4 audit finding).
+// ─────────────────────────────────────────────────────────────────────────────
+import type { AccountConfig, Entry, DerivedMetrics } from '../types'
+
+function computeMLL(config: AccountConfig, peakBalance: number): number {
+  const raw = peakBalance - config.drawdownAmount
+  return Math.max(raw, config.mllLockAt)
+}
+
+function clamp(v: number, lo: number, hi: number) { return Math.max(lo, Math.min(hi, v)) }
+
+export function derive(
+  config: AccountConfig,
+  entries: Entry[],
+  payoutCount: number
+): DerivedMetrics {
+  let bal  = config.accountSize
+  let peak = config.accountSize
+
+  for (const e of entries) {
+    bal += e.pnl
+    if (bal > peak) peak = bal
+  }
+
+  const currentMLL   = computeMLL(config, peak)
+  const mllLocked    = currentMLL >= config.mllLockAt
+  const buffer       = bal - currentMLL
+  const aboveSN      = bal - config.safetyNet
+
+  const winEntries   = entries.filter(e => e.pnl > 0)
+  const lossEntries  = entries.filter(e => e.pnl < 0)
+  const qualDays     = entries.filter(e => e.pnl >= config.qualifyingDayMin).length
+
+  const totalProfit  = winEntries.reduce((s, e) => s + e.pnl, 0)
+  const biggestDay   = winEntries.length ? Math.max(...winEntries.map(e => e.pnl)) : 0
+  const consPct      = totalProfit > 0 ? (biggestDay / totalProfit) * 100 : 0
+  const consOk       = config.consistencyRule === 0 || consPct < config.consistencyRule
+
+  const payoutEligible = aboveSN >= config.minPayout && consOk && qualDays >= config.minQualifyingDays
+  const nextPayoutMax  = config.payoutLadder[
+    Math.min(payoutCount, config.payoutLadder.length - 1)
+  ]
+
+  const progress = clamp(
+    ((bal - config.accountSize) / (config.safetyNet - config.accountSize)) * 100,
+    0, 100
+  )
+
+  const winRate = entries.length
+    ? Math.round((winEntries.length / entries.length) * 100)
+    : 0
+
+  return {
+    currentBalance:  bal,
+    peakBalance:     peak,
+    currentMLL,
+    mllLocked,
+    buffer,
+    safetyNet:       config.safetyNet,
+    aboveSafetyNet:  aboveSN,
+    qualifyingDays:  qualDays,
+    totalProfit,
+    biggestDay,
+    consistencyPct:  consPct,
+    consistencyOk:   consOk,
+    payoutEligible,
+    nextPayoutMax,
+    mllLockProgress: progress,
+    winDays:         winEntries.length,
+    lossDays:        lossEntries.length,
+    winRate,
+  }
+}
