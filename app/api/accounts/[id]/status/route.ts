@@ -4,7 +4,8 @@ import { createClient } from '@/lib/supabase/server'
 
 const VALID_STATUSES = ['active', 'breached', 'passed']
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -17,10 +18,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   }
 
   const { data: account } = await supabase
-    .from('accounts').select('id').eq('id', params.id).eq('user_id', user.id).single()
+    .from('accounts').select('id').eq('id', id).eq('user_id', user.id).single()
   if (!account) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  await supabase.from('accounts').update({ status }).eq('id', params.id)
+  await supabase.from('accounts').update({ status }).eq('id', id)
 
-  return NextResponse.redirect(new URL(`/account/${params.id}`, req.url))
+  return NextResponse.redirect(new URL(`/account/${id}`, req.url))
 }

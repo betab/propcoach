@@ -8,7 +8,8 @@ import type { Entry } from '@/lib/firms/types'
 function fmt(n: number)  { return (n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString() }
 function fmtS(n: number) { return (n > 0 ? '+$' : n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString() }
 
-export default async function AccountPage({ params }: { params: { id: string } }) {
+export default async function AccountPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -16,7 +17,7 @@ export default async function AccountPage({ params }: { params: { id: string } }
   const { data: account } = await supabase
     .from('accounts')
     .select('*')
-    .eq('id', params.id)
+    .eq('id', id)
     .eq('user_id', user.id)
     .single()
 
