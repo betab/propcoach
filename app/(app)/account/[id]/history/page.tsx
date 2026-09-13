@@ -2,6 +2,7 @@
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import DeleteEntryButton from '@/components/DeleteEntryButton'
 import type { Entry } from '@/lib/firms/types'
 
 function fmtS(n: number) { return (n > 0 ? '+$' : n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString() }
@@ -92,18 +93,10 @@ export default async function HistoryPage({ params }: { params: { id: string } }
               <div className="hidden sm:block text-xs text-muted">{entry.contracts || '—'}</div>
               <div className="hidden sm:block text-xs text-muted/70 truncate">{entry.notes || '—'}</div>
 
-              {/* Delete form */}
-              <form action={`/api/entries/${entry.id}/delete`} method="POST" className="hidden sm:block">
-                <button
-                  type="submit"
-                  className="text-muted hover:text-danger transition-colors text-lg leading-none"
-                  onClick={e => {
-                    if (!confirm('Delete this entry?')) e.preventDefault()
-                  }}
-                >
-                  ×
-                </button>
-              </form>
+              {/* Delete */}
+              <div className="hidden sm:block">
+                <DeleteEntryButton entryId={entry.id} />
+              </div>
             </div>
           ))}
         </div>

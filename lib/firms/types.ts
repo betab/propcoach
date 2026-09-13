@@ -7,6 +7,7 @@
 
 export type DrawdownType = 'trailing_eod' | 'trailing_intraday' | 'static'
 export type AccountPlan  = 'free' | 'pro'
+export type AccountStatus = 'active' | 'breached' | 'passed'
 
 // ── Raw entry from database ───────────────────────────────────────────────────
 export interface Entry {
@@ -41,6 +42,7 @@ export interface Account {
   version:        string
   start_date:     string
   is_active:      boolean
+  status:         AccountStatus
   payout_count:   number
   created_at:     string
 }
