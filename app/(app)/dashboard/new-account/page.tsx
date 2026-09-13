@@ -64,23 +64,23 @@ export default function NewAccountPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { router.push('/login'); return }
 
-    const { data, error: insertError } = await supabase
-      .from('accounts')
-      .insert({
-        user_id:        user.id,
+    const res = await fetch('/api/accounts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
         firm_id:        firmId,
-        nickname:       nickname || `${(size/1000).toFixed(0)}K ${firmId.toUpperCase()}`,
-        account_number: accountNumber,
         size,
         drawdown_type:  drawdownType,
         version,
+        nickname,
+        account_number: accountNumber,
         start_date:     startDate,
-      })
-      .select()
-      .single()
+      }),
+    })
+    const data = await res.json()
 
-    if (insertError) {
-      setError(insertError.message)
+    if (!res.ok) {
+      setError(data.error || 'Something went wrong.')
       setLoading(false)
       return
     }
