@@ -1,90 +1,17 @@
-// lib/firms/apex/rules.ts
-import type {
-  AccountConfig, Entry, DerivedMetrics,
-  CoachingRule, FirmRules, DrawdownType
-} from '../types'
-import { getApexConfig, getApexAvailableSizes } from './config'
-
-// ── Core math ─────────────────────────────────────────────────────────────────
-
-function computeMLL(config: AccountConfig, peakBalance: number): number {
-  const raw = peakBalance - config.drawdownAmount
-  return Math.max(raw, config.mllLockAt)
-}
-
-function clamp(v: number, lo: number, hi: number) { return Math.max(lo, Math.min(hi, v)) }
-
-// ── Derive all metrics from raw entries ───────────────────────────────────────
-
-function derive(
-  config: AccountConfig,
-  entries: Entry[],
-  payoutCount: number
-): DerivedMetrics {
-  let bal  = config.accountSize
-  let peak = config.accountSize
-
-  for (const e of entries) {
-    bal += e.pnl
-    if (bal > peak) peak = bal
-  }
-
-  const currentMLL   = computeMLL(config, peak)
-  const mllLocked    = currentMLL >= config.mllLockAt
-  const buffer       = bal - currentMLL
-  const aboveSN      = bal - config.safetyNet
-
-  const winEntries   = entries.filter(e => e.pnl > 0)
-  const lossEntries  = entries.filter(e => e.pnl < 0)
-  const qualDays     = entries.filter(e => e.pnl >= config.qualifyingDayMin).length
-
-  const totalProfit  = winEntries.reduce((s, e) => s + e.pnl, 0)
-  const biggestDay   = winEntries.length ? Math.max(...winEntries.map(e => e.pnl)) : 0
-  const consPct      = totalProfit > 0 ? (biggestDay / totalProfit) * 100 : 0
-  const consOk       = config.consistencyRule === 0 || consPct < config.consistencyRule
-
-  const payoutEligible = aboveSN >= config.minPayout && consOk
-  const nextPayoutMax  = config.payoutLadder[
-    Math.min(payoutCount, config.payoutLadder.length - 1)
-  ]
-
-  const progress = clamp(
-    ((bal - config.accountSize) / (config.safetyNet - config.accountSize)) * 100,
-    0, 100
-  )
-
-  const winRate = entries.length
-    ? Math.round((winEntries.length / entries.length) * 100)
-    : 0
-
-  return {
-    currentBalance:  bal,
-    peakBalance:     peak,
-    currentMLL,
-    mllLocked,
-    buffer,
-    safetyNet:       config.safetyNet,
-    aboveSafetyNet:  aboveSN,
-    qualifyingDays:  qualDays,
-    totalProfit,
-    biggestDay,
-    consistencyPct:  consPct,
-    consistencyOk:   consOk,
-    payoutEligible,
-    nextPayoutMax,
-    mllLockProgress: progress,
-    winDays:         winEntries.length,
-    lossDays:        lossEntries.length,
-    winRate,
-  }
-}
-
-// ── Coaching rules ────────────────────────────────────────────────────────────
+// lib/firms/shared/coaching.ts
+// ─────────────────────────────────────────────────────────────────────────────
+// Coaching-card generation. Firm-agnostic, moved here verbatim from the old
+// lib/firms/apex/rules.ts. The internal thresholds (0.7 "getting close"
+// multiplier, 2.5x big-day multiplier, 0.4 stop-loss fraction) stay as code
+// constants shared across all firms, not DB fields, per the firm-management
+// milestone plan.
+// ─────────────────────────────────────────────────────────────────────────────
+import type { AccountConfig, Entry, DerivedMetrics, CoachingRule } from '../types'
 
 function fmt(n: number)  { return (n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString() }
 function fmtS(n: number) { return (n > 0 ? '+$' : n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString() }
 
-function buildCoaching(
+export function buildCoaching(
   config:      AccountConfig,
   m:           DerivedMetrics,
   entries:     Entry[],
@@ -182,6 +109,13 @@ function buildCoaching(
       note:     `Balance above Safety Net, consistency clear. You can request now. Record the payout in the app so your cycle resets correctly.`,
       severity: 'ok',
     })
+  } else if (m.aboveSafetyNet >= config.minPayout && m.consistencyOk && m.qualifyingDays < config.minQualifyingDays) {
+    rules.push({
+      label:    'Payout — Not Enough Qualifying Days',
+      value:    `${m.qualifyingDays}/${config.minQualifyingDays}`,
+      note:     `Balance and consistency both clear, but you need ${config.minQualifyingDays - m.qualifyingDays} more qualifying day${config.minQualifyingDays - m.qualifyingDays === 1 ? '' : 's'} ($${config.qualifyingDayMin}+ profit) before this firm allows a payout request.`,
+      severity: 'warn',
+    })
   }
 
   // ── Recent trend ──────────────────────────────────────────────────────────
@@ -208,12 +142,4 @@ function buildCoaching(
   }
 
   return rules
-}
-
-// ── Export as FirmRules ───────────────────────────────────────────────────────
-export const apexRules: FirmRules = {
-  getConfig:          (size, type, version) => getApexConfig(size, type as DrawdownType, version),
-  getAvailableSizes:  getApexAvailableSizes,
-  derive,
-  buildCoaching,
 }

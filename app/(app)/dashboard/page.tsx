@@ -1,15 +1,14 @@
 // app/(app)/dashboard/page.tsx
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import { getFirmRules } from '@/lib/firms'
-import { getAllFirms } from '@/lib/firms'
-import type { Account, Entry } from '@/lib/firms/types'
+import { getFirmConfigForAccount, derive, getAllFirms } from '@/lib/firms'
+import type { Account, Entry, FirmMeta } from '@/lib/firms/types'
 
 function fmt(n: number) {
   return (n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString()
 }
 
-async function AccountCard({ account }: { account: Account }) {
+async function AccountCard({ account, firmMeta }: { account: Account; firmMeta: FirmMeta | undefined }) {
   const supabase = await createClient()
   const { data: entries } = await supabase
     .from('entries')
@@ -17,14 +16,10 @@ async function AccountCard({ account }: { account: Account }) {
     .eq('account_id', account.id)
     .order('date', { ascending: true })
 
-  const allFirms = getAllFirms()
-  const firmMeta = allFirms.find(f => f.id === account.firm_id)
-
   let metrics = null
   try {
-    const rules = getFirmRules(account.firm_id)
-    const config = rules.getConfig(account.size, account.drawdown_type, account.version)
-    metrics = rules.derive(config, (entries || []) as Entry[], account.payout_count)
+    const config = await getFirmConfigForAccount(supabase, account)
+    metrics = derive(config, (entries || []) as Entry[], account.payout_count)
   } catch {}
 
   const bufColor = !metrics ? '#5a7a90'
@@ -110,6 +105,8 @@ export default async function DashboardPage() {
   const activeCount = accounts?.filter(a => a.status === 'active').length || 0
   const canAdd      = isPro || activeCount < 1
 
+  const allFirms = await getAllFirms(supabase)
+
   return (
     <div>
       {/* Page header */}
@@ -142,7 +139,11 @@ export default async function DashboardPage() {
       {accounts && accounts.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2">
           {accounts.map(account => (
-            <AccountCard key={account.id} account={account as Account} />
+            <AccountCard
+              key={account.id}
+              account={account as Account}
+              firmMeta={allFirms.find(f => f.id === account.firm_id)}
+            />
           ))}
         </div>
       ) : (

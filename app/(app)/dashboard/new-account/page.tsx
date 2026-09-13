@@ -1,15 +1,18 @@
 'use client'
 // app/(app)/dashboard/new-account/page.tsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { getAllFirms } from '@/lib/firms'
-
-const ALL_FIRMS = getAllFirms()
+import { getAllFirms, getFirmVersions, getAvailableSizes } from '@/lib/firms'
+import type { FirmMeta, FirmVersion } from '@/lib/firms/types'
 
 export default function NewAccountPage() {
   const router = useRouter()
   const supabase = createClient()
+
+  const [allFirms,       setAllFirms]       = useState<FirmMeta[]>([])
+  const [versions,       setVersions]       = useState<FirmVersion[]>([])
+  const [availableSizes, setAvailableSizes] = useState<number[]>([])
 
   const [firmId,        setFirmId]        = useState('apex')
   const [size,          setSize]          = useState(50000)
@@ -21,11 +24,37 @@ export default function NewAccountPage() {
   const [error,         setError]         = useState('')
   const [loading,       setLoading]       = useState(false)
 
-  const selectedFirm = ALL_FIRMS.find(f => f.id === firmId)
-  let availableSizes: number[] = [25000, 50000, 100000, 150000]
-  try {
-    if (selectedFirm?.rules) availableSizes = selectedFirm.rules.getAvailableSizes()
-  } catch {}
+  useEffect(() => {
+    getAllFirms(supabase).then(setAllFirms)
+  }, [])
+
+  // Reload the firm's available versions whenever it changes, and pick a
+  // sensible default version (only shows a picker when there's more than
+  // one — most firms will only have one until an admin adds a second, e.g.
+  // Apex Legacy once its real numbers are entered).
+  useEffect(() => {
+    let cancelled = false
+    getFirmVersions(supabase, firmId).then(v => {
+      if (cancelled) return
+      setVersions(v)
+      if (v.length && !v.some(x => x.key === version)) setVersion(v[0].key)
+    })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firmId])
+
+  // Reload available sizes whenever firm or version changes.
+  useEffect(() => {
+    if (!version) { setAvailableSizes([]); return }
+    let cancelled = false
+    getAvailableSizes(supabase, firmId, version).then(sizes => {
+      if (cancelled) return
+      setAvailableSizes(sizes)
+      if (sizes.length && !sizes.includes(size)) setSize(sizes[0])
+    })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firmId, version])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -73,7 +102,7 @@ export default function NewAccountPage() {
           <div>
             <label className="label">Prop Firm</label>
             <div className="grid grid-cols-2 gap-2">
-              {ALL_FIRMS.map(firm => (
+              {allFirms.map(firm => (
                 <button
                   key={firm.id}
                   type="button"
@@ -98,22 +127,26 @@ export default function NewAccountPage() {
           {/* Account size */}
           <div>
             <label className="label">Account Size</label>
-            <div className="grid grid-cols-4 gap-2">
-              {availableSizes.map(s => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => setSize(s)}
-                  className={`p-2.5 rounded border text-center text-xs transition-all ${
-                    size === s
-                      ? 'border-green bg-green/5 text-green'
-                      : 'border-border text-muted hover:border-blue/40'
-                  }`}
-                >
-                  ${(s/1000).toFixed(0)}K
-                </button>
-              ))}
-            </div>
+            {availableSizes.length > 0 ? (
+              <div className="grid grid-cols-4 gap-2">
+                {availableSizes.map(s => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setSize(s)}
+                    className={`p-2.5 rounded border text-center text-xs transition-all ${
+                      size === s
+                        ? 'border-green bg-green/5 text-green'
+                        : 'border-border text-muted hover:border-blue/40'
+                    }`}
+                  >
+                    ${(s/1000).toFixed(0)}K
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="text-xs text-dim">No account sizes available for this firm yet.</div>
+            )}
           </div>
 
           {/* Drawdown type */}
@@ -143,29 +176,25 @@ export default function NewAccountPage() {
             </div>
           </div>
 
-          {/* Version (Apex-specific) */}
-          {firmId === 'apex' && (
+          {/* Version — only shown when this firm has more than one */}
+          {versions.length > 1 && (
             <div>
               <label className="label">Account Version</label>
               <div className="grid grid-cols-2 gap-2">
-                {[
-                  { value: '4.0',    label: '4.0 (March 2026+)',  sub: 'New rules, one-time billing' },
-                  { value: 'legacy', label: 'Legacy (pre-March)', sub: 'Old rules, monthly billing' },
-                ].map(opt => (
+                {versions.map(opt => (
                   <button
-                    key={opt.value}
+                    key={opt.key}
                     type="button"
-                    onClick={() => setVersion(opt.value)}
+                    onClick={() => setVersion(opt.key)}
                     className={`p-3 rounded border text-left transition-all ${
-                      version === opt.value
+                      version === opt.key
                         ? 'border-green bg-green/5'
                         : 'border-border hover:border-blue/40'
                     }`}
                   >
-                    <div className={`text-xs font-semibold ${version === opt.value ? 'text-green' : 'text-muted'}`}>
+                    <div className={`text-xs font-semibold ${version === opt.key ? 'text-green' : 'text-muted'}`}>
                       {opt.label}
                     </div>
-                    <div className="text-[10px] text-dim mt-0.5">{opt.sub}</div>
                   </button>
                 ))}
               </div>
@@ -222,7 +251,7 @@ export default function NewAccountPage() {
             >
               Cancel
             </button>
-            <button type="submit" className="btn-primary" disabled={loading}>
+            <button type="submit" className="btn-primary" disabled={loading || !availableSizes.length}>
               {loading ? 'Creating…' : 'Create Account →'}
             </button>
           </div>

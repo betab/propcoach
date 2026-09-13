@@ -49,21 +49,22 @@ export interface Account {
 
 // ── Configuration for a specific account size at a specific firm ──────────────
 export interface AccountConfig {
-  firmId:           string
-  firmName:         string
-  firmLogo:         string          // path to logo in /public/logos/
-  accountSize:      number
-  drawdownType:     DrawdownType
-  drawdownAmount:   number          // absolute $ amount
-  startingMLL:      number          // accountSize - drawdownAmount
-  safetyNet:        number          // point at which MLL locks + payouts unlock
-  mllLockAt:        number          // MLL freezes here forever
-  dailyLossLimit:   number | null   // null = no DLL (e.g. Intraday accounts)
-  qualifyingDayMin: number          // min $ profit for a day to qualify
-  maxContracts:     number
-  consistencyRule:  number          // max % any single day can be of total profit (0 = no rule)
-  payoutLadder:     number[]        // max withdrawal per payout, by payout number
-  minPayout:        number
+  firmId:            string
+  firmName:          string
+  firmLogo:          string          // path to logo in /public/logos/
+  accountSize:       number
+  drawdownType:      DrawdownType
+  drawdownAmount:    number          // absolute $ amount
+  startingMLL:       number          // accountSize - drawdownAmount
+  safetyNet:         number          // point at which MLL locks + payouts unlock
+  mllLockAt:         number          // MLL freezes here forever
+  dailyLossLimit:    number | null   // null = no DLL (e.g. Intraday accounts)
+  qualifyingDayMin:  number          // min $ profit for a day to qualify
+  minQualifyingDays: number          // min count of qualifying days before payout eligible (0 = no gate)
+  maxContracts:      number
+  consistencyRule:   number          // max % any single day can be of total profit (0 = no rule)
+  payoutLadder:      number[]        // max withdrawal per payout, by payout number
+  minPayout:         number
 }
 
 // ── All computed metrics for a given account ──────────────────────────────────
@@ -96,12 +97,10 @@ export interface CoachingRule {
   severity: 'ok' | 'warn' | 'alert'
 }
 
-// ── What every firm's rules module must export ────────────────────────────────
-export interface FirmRules {
-  getConfig(size: number, drawdownType: DrawdownType, version?: string): AccountConfig
-  getAvailableSizes(): number[]
-  derive(config: AccountConfig, entries: Entry[], payoutCount: number): DerivedMetrics
-  buildCoaching(config: AccountConfig, metrics: DerivedMetrics, entries: Entry[], payoutCount: number): CoachingRule[]
+// ── A prop firm's named ruleset (e.g. Apex "4.0" vs "Legacy") ─────────────────
+export interface FirmVersion {
+  key:   string   // '4.0', 'legacy', 'standard'
+  label: string   // '4.0 (March 2026+)'
 }
 
 // ── Firm metadata for the registry ───────────────────────────────────────────
@@ -111,5 +110,4 @@ export interface FirmMeta {
   logo:        string
   isActive:    boolean              // show in UI?
   comingSoon:  boolean              // show greyed-out "coming soon" badge
-  rules:       FirmRules
 }
