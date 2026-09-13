@@ -18,7 +18,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   if (!profile || profile.role === 'user') redirect('/dashboard')
 
-  const isReadOnly = profile.role === 'admin_readonly'
+  const isReadOnly   = profile.role === 'admin_readonly'
+  const isSuperAdmin = profile.role === 'super_admin'
 
   return (
     <div className="min-h-screen">
@@ -34,6 +35,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           </Link>
           <nav className="flex items-center gap-4 text-xs text-muted">
             <Link href="/admin" className="hover:text-amber transition-colors">Firms</Link>
+            {isSuperAdmin && (
+              <Link href="/admin/team" className="hover:text-amber transition-colors">Team</Link>
+            )}
           </nav>
         </div>
         <div className="flex items-center gap-4">
