@@ -65,7 +65,8 @@ export interface AccountConfig {
   qualifyingDayMin:  number          // min $ profit for a day to qualify
   minQualifyingDays: number          // min count of qualifying days before payout eligible (0 = no gate)
   maxContracts:      number
-  consistencyRule:   number          // max % any single day can be of total profit (0 = no rule)
+  consistencyRule:   number          // max % any single day can be of total profit (0 = no rule) — the flat/base value; see consistencyRuleSchedule for firms that escalate it
+  consistencyRuleSchedule: number[] | null  // e.g. Tradeify Lightning's escalating consistency: [20,25,30] = 20% before any payout, 25% after the first, 30% after the second+ — same indexing pattern as payoutLadder. null/empty = no escalation, consistencyRule applies at every payout count
   payoutLadder:      number[]        // max withdrawal per payout, by payout number
   minPayout:         number
 }
@@ -86,6 +87,7 @@ export interface DerivedMetrics {
   biggestDay:       number
   consistencyPct:   number
   consistencyOk:    boolean
+  activeConsistencyRule: number  // the % actually in effect right now — config.consistencyRule, or the schedule-resolved value once payouts have started. Use this for display, never config.consistencyRule directly
   payoutEligible:   boolean
   nextPayoutMax:    number
   mllLockProgress:  number          // 0–100 toward locking MLL

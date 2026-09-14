@@ -25,9 +25,10 @@ export function buildCoaching(
     ? 'build'
     : 'payout'
 
-  // Max profit tomorrow before tripping 50% consistency wall
+  // Max profit tomorrow before tripping the consistency wall (activeConsistencyRule
+  // accounts for firms like Tradeify Lightning where the cap escalates by payout count)
   const maxTomorrow = m.totalProfit > 0
-    ? Math.floor(m.totalProfit * (config.consistencyRule / 100 - 0.001)) - m.biggestDay
+    ? Math.floor(m.totalProfit * (m.activeConsistencyRule / 100 - 0.001)) - m.biggestDay
     : 99999
   const safeTarget = maxTomorrow > 50 && maxTomorrow < 300 ? maxTomorrow : 300
   const stopLoss   = Math.min(
@@ -44,7 +45,7 @@ export function buildCoaching(
   else if (maxTomorrow < 300 && maxTomorrow > 0)
     tNote = `Your biggest day (${fmt(m.biggestDay)}) is ${m.consistencyPct.toFixed(0)}% of total profit. Staying under ${fmt(safeTarget)} tomorrow keeps you payout-eligible.`
   else
-    tNote = `Consistency healthy at ${m.consistencyPct.toFixed(0)}%. This target qualifies the day and keeps you well clear of the ${config.consistencyRule}% cap.`
+    tNote = `Consistency healthy at ${m.consistencyPct.toFixed(0)}%. This target qualifies the day and keeps you well clear of the ${m.activeConsistencyRule}% cap.`
 
   rules.push({
     label: 'Daily Target',
@@ -84,20 +85,20 @@ export function buildCoaching(
   }
 
   // ── Consistency ───────────────────────────────────────────────────────────
-  if (config.consistencyRule > 0) {
+  if (m.activeConsistencyRule > 0) {
     if (!m.consistencyOk) {
-      const needMore = Math.ceil(m.biggestDay / (config.consistencyRule / 100) - m.totalProfit)
+      const needMore = Math.ceil(m.biggestDay / (m.activeConsistencyRule / 100) - m.totalProfit)
       rules.push({
         label:    `Consistency — PAYOUT BLOCKED`,
         value:    `${m.consistencyPct.toFixed(0)}%`,
-        note:     `Biggest day is over ${config.consistencyRule}% of total profit. Need ~${fmt(needMore)} more across multiple sessions to drop below the threshold.`,
+        note:     `Biggest day is over ${m.activeConsistencyRule}% of total profit. Need ~${fmt(needMore)} more across multiple sessions to drop below the threshold.`,
         severity: 'alert',
       })
-    } else if (m.consistencyPct > config.consistencyRule * 0.7) {
+    } else if (m.consistencyPct > m.activeConsistencyRule * 0.7) {
       rules.push({
         label:    'Consistency — Getting Close',
         value:    `${m.consistencyPct.toFixed(0)}%`,
-        note:     `Approaching the ${config.consistencyRule}% wall. Avoid a large single day until you have more total profit cushion.`,
+        note:     `Approaching the ${m.activeConsistencyRule}% wall. Avoid a large single day until you have more total profit cushion.`,
         severity: 'warn',
       })
     }

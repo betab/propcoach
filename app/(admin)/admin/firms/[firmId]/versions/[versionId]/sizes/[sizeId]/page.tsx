@@ -124,6 +124,16 @@ export default async function EditFirmRuleSizePage({
               defaultValue={(size.payout_ladder || []).join(',')}
             />
           </div>
+          <div>
+            <label className="label">Consistency Schedule (comma-separated %, blank = flat rate above, escalates by payout count)</label>
+            <input
+              type="text"
+              name="consistency_schedule"
+              className="input"
+              defaultValue={(size.consistency_schedule || []).join(',')}
+              placeholder="20,25,30"
+            />
+          </div>
 
           <div className="flex gap-3 pt-2">
             <Link

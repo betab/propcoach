@@ -32,6 +32,7 @@ type FirmRuleSizeRow = {
   min_qualifying_days:  number
   max_contracts:        number
   consistency_rule_pct: number | string
+  consistency_schedule: (number | string)[] | null
   payout_ladder:        (number | string)[] | null
   min_payout:           number | string
 }
@@ -68,6 +69,8 @@ function buildConfig(
     minQualifyingDays: row.min_qualifying_days,
     maxContracts:      row.max_contracts,
     consistencyRule:   Number(row.consistency_rule_pct),
+    consistencyRuleSchedule: row.consistency_schedule && row.consistency_schedule.length > 0
+      ? row.consistency_schedule.map(Number) : null,
     payoutLadder:      (row.payout_ladder || []).map(Number),
     minPayout:         Number(row.min_payout),
   }

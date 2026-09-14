@@ -16,6 +16,7 @@ export interface ParsedFirmRuleSize {
   minQualifyingDays: number
   maxContracts: number
   consistencyRulePct: number
+  consistencySchedule: number[] | null
   payoutLadder: number[]
   minPayout: number
   effectiveFrom: string
@@ -40,6 +41,7 @@ export function parseFirmRuleSizeForm(formData: FormData): ParsedFirmRuleSize | 
   const minPayout = Number(formData.get('min_payout') || 0)
   const effectiveFrom = String(formData.get('effective_from') || '').trim()
   const ladderRaw = String(formData.get('payout_ladder') || '').trim()
+  const consistencyScheduleRaw = String(formData.get('consistency_schedule') || '').trim()
 
   if (!accountSize || !drawdownType || !drawdownAmount || !maxContracts || !effectiveFrom) {
     return { error: 'Account size, drawdown type, drawdown amount, max contracts, and effective date are required.' }
@@ -56,6 +58,14 @@ export function parseFirmRuleSizeForm(formData: FormData): ParsedFirmRuleSize | 
     }
   }
 
+  let consistencySchedule: number[] | null = null
+  if (consistencyScheduleRaw) {
+    consistencySchedule = consistencyScheduleRaw.split(',').map(s => Number(s.trim()))
+    if (consistencySchedule.some(n => isNaN(n))) {
+      return { error: 'Consistency schedule must be a comma-separated list of percentages, e.g. 20,25,30.' }
+    }
+  }
+
   if (dllRaw !== '' && isNaN(dailyLossLimit as number)) {
     return { error: 'Daily loss limit must be a number, or left blank for no DLL.' }
   }
@@ -68,7 +78,7 @@ export function parseFirmRuleSizeForm(formData: FormData): ParsedFirmRuleSize | 
 
   return {
     accountSize, drawdownType, drawdownAmount, dailyLossLimit, optionalDailyLossLimit, scaleDllPct, safetyNetBuffer, mllLockBuffer,
-    qualifyingDayMin, minQualifyingDays, maxContracts, consistencyRulePct, payoutLadder, minPayout,
+    qualifyingDayMin, minQualifyingDays, maxContracts, consistencyRulePct, consistencySchedule, payoutLadder, minPayout,
     effectiveFrom,
   }
 }
