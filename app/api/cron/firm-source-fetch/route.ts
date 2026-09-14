@@ -25,8 +25,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { htmlToText } from '@/lib/html-to-text'
 
-const MAX_RESPONSE_BYTES = 300_000  // guard against an unexpectedly huge page
-const MAX_TEXT_CHARS = 60_000       // keep the converted text digestible for a caller reading it
+const MAX_RESPONSE_BYTES = 3_000_000  // guard against a pathological response, not a real page — a normal
+                                       // marketing site's raw HTML easily runs 300-500KB (confirmed live
+                                       // against tradeify.co: 392KB), so this only needs to catch the
+                                       // genuinely oversized case, not typical pages
+const MAX_TEXT_CHARS = 60_000         // keep the CONVERTED text digestible for a caller reading it — this is
+                                       // the cap that actually matters for response size, independent of raw input
 
 export async function POST(req: NextRequest) {
   const secret = process.env.FIRM_RULES_INGEST_SECRET
