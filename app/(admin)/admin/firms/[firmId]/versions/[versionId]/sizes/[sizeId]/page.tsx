@@ -72,6 +72,10 @@ export default async function EditFirmRuleSizePage({
               <input type="number" step="0.01" name="optional_daily_loss_limit" className="input" defaultValue={size.optional_daily_loss_limit ?? ''} />
             </div>
             <div>
+              <label className="label">Scale DLL % (of peak balance once MLL locks; blank = no scaling DLL)</label>
+              <input type="number" step="0.01" name="scale_dll_pct" className="input" defaultValue={size.scale_dll_pct ?? ''} />
+            </div>
+            <div>
               <label className="label">Safety Net Buffer ($)</label>
               <input type="number" step="0.01" name="safety_net_buffer" className="input" defaultValue={size.safety_net_buffer} />
             </div>

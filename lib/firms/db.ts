@@ -25,6 +25,7 @@ type FirmRuleSizeRow = {
   drawdown_amount:      number | string
   daily_loss_limit:     number | string | null
   optional_daily_loss_limit: number | string | null
+  scale_dll_pct:        number | string | null
   safety_net_buffer:    number | string
   mll_lock_buffer:      number | string
   qualifying_day_min:   number | string
@@ -62,6 +63,7 @@ function buildConfig(
     // effective number and never needs to know the toggle exists.
     dailyLossLimit:    dllEnabled && optionalDll != null ? optionalDll : baseDll,
     optionalDailyLossLimit: optionalDll,
+    scaleDllPct:       row.scale_dll_pct == null ? null : Number(row.scale_dll_pct),
     qualifyingDayMin:  Number(row.qualifying_day_min),
     minQualifyingDays: row.min_qualifying_days,
     maxContracts:      row.max_contracts,

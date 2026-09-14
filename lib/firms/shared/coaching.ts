@@ -31,7 +31,7 @@ export function buildCoaching(
     : 99999
   const safeTarget = maxTomorrow > 50 && maxTomorrow < 300 ? maxTomorrow : 300
   const stopLoss   = Math.min(
-    config.dailyLossLimit ?? config.drawdownAmount,
+    m.effectiveDailyLossLimit ?? config.drawdownAmount,
     Math.floor(m.buffer * 0.4)
   )
 
@@ -54,13 +54,15 @@ export function buildCoaching(
   })
 
   // ── Stop loss ─────────────────────────────────────────────────────────────
-  const dllNote = config.dailyLossLimit
-    ? ` Your $${config.dailyLossLimit.toLocaleString()} DLL would pause you at that point anyway — honour this earlier.`
+  const dllNote = m.effectiveDailyLossLimit
+    ? m.dllIsDynamic
+      ? ` Your DLL is dynamic on this account — currently $${Math.round(m.effectiveDailyLossLimit).toLocaleString()} (${config.scaleDllPct}% of peak balance) and moves as your peak balance does.`
+      : ` Your $${m.effectiveDailyLossLimit.toLocaleString()} DLL would pause you at that point anyway — honour this earlier.`
     : ` No DLL on this account type — the MLL is your only hard floor.`
   rules.push({
     label: 'Stop Trading If Down',
     value: fmt(stopLoss),
-    note:  `${Math.round((stopLoss / (config.dailyLossLimit ?? config.drawdownAmount)) * 100)}% of your max daily loss.${dllNote}`,
+    note:  `${Math.round((stopLoss / (m.effectiveDailyLossLimit ?? config.drawdownAmount)) * 100)}% of your max daily loss.${dllNote}`,
     severity: m.buffer < 1000 ? 'alert' : 'warn',
   })
 

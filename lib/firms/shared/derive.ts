@@ -43,6 +43,19 @@ export function derive(
   const currentMLL   = computeMLL(config, peak)
   const mllLocked    = currentMLL >= config.mllLockAt
   const buffer       = bal - currentMLL
+
+  // Lucid's "LucidScale DLL": once the trailing MLL locks (peak balance has
+  // risen past the point where the floor stops moving — "Above Initial
+  // Trail" in Lucid's own terms, the same threshold mllLocked already
+  // captures), the daily loss limit stops being a fixed dollar figure and
+  // becomes a percentage of peak balance instead, recomputed as peak moves.
+  // Firms without this mechanic (config.scaleDllPct === null, every firm
+  // except Lucid) always fall through to the static dailyLossLimit — this
+  // never changes behavior for Apex/TopStep/Tradeify accounts.
+  const dllIsDynamic = mllLocked && config.scaleDllPct != null
+  const effectiveDailyLossLimit = dllIsDynamic
+    ? peak * (config.scaleDllPct! / 100)
+    : config.dailyLossLimit
   const aboveSN      = bal - config.safetyNet
 
   const winEntries   = entries.filter(e => e.pnl > 0)
@@ -73,6 +86,8 @@ export function derive(
     peakBalance:     peak,
     currentMLL,
     mllLocked,
+    effectiveDailyLossLimit,
+    dllIsDynamic,
     buffer,
     safetyNet:       config.safetyNet,
     aboveSafetyNet:  aboveSN,

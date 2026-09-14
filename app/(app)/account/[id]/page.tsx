@@ -116,7 +116,7 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
       {/* Secondary stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
         {[
-          { label: 'Daily Loss Limit', value: config.dailyLossLimit ? fmt(config.dailyLossLimit) : 'None', sub: config.dailyLossLimit ? "Pauses — won't kill" : 'No DLL on this account', color: '#ffaa00' },
+          { label: 'Daily Loss Limit', value: m.effectiveDailyLossLimit ? fmt(m.effectiveDailyLossLimit) : 'None', sub: m.dllIsDynamic ? `${config.scaleDllPct}% of peak balance — moves daily` : m.effectiveDailyLossLimit ? "Pauses — won't kill" : 'No DLL on this account', color: '#ffaa00' },
           { label: 'Consistency',      value: m.consistencyPct.toFixed(0) + '%', sub: m.consistencyOk ? '✅ Under 50% — OK' : '❌ Over 50% — Blocked', color: m.consistencyOk ? '#00ff88' : '#ff4444' },
           { label: 'Qualifying Days',  value: String(m.qualifyingDays), sub: `$${config.qualifyingDayMin}+ days logged`, color: '#7aa3d4' },
           { label: `Payout #${account.payout_count + 1}`, value: fmt(m.nextPayoutMax), sub: m.payoutEligible ? '✅ Eligible now' : 'Not eligible yet', color: m.payoutEligible ? '#00ff88' : '#5a7a90' },
