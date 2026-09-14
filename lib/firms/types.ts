@@ -69,6 +69,7 @@ export interface AccountConfig {
   consistencyRuleSchedule: number[] | null  // e.g. Tradeify Lightning's escalating consistency: [20,25,30] = 20% before any payout, 25% after the first, 30% after the second+ — same indexing pattern as payoutLadder. null/empty = no escalation, consistencyRule applies at every payout count
   payoutLadder:      number[]        // max withdrawal per payout, by payout number
   minPayout:         number
+  minDaysBetweenPayouts: number      // e.g. Tradeify Select Flex's 5-day gate between payout requests; 0 = no gate (payout-eligible any day the other conditions clear)
 }
 
 // ── All computed metrics for a given account ──────────────────────────────────
@@ -88,6 +89,8 @@ export interface DerivedMetrics {
   consistencyPct:   number
   consistencyOk:    boolean
   activeConsistencyRule: number  // the % actually in effect right now — config.consistencyRule, or the schedule-resolved value once payouts have started. Use this for display, never config.consistencyRule directly
+  daysSinceLastPayout: number | null  // null = no prior payout recorded (the gate never applies to a first payout)
+  payoutFrequencyOk: boolean         // false only when minDaysBetweenPayouts hasn't elapsed since the last payout
   payoutEligible:   boolean
   nextPayoutMax:    number
   mllLockProgress:  number          // 0–100 toward locking MLL

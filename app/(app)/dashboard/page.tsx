@@ -10,16 +10,25 @@ function fmt(n: number) {
 
 async function AccountCard({ account, firmMeta }: { account: Account; firmMeta: FirmMeta | undefined }) {
   const supabase = await createClient()
-  const { data: entries } = await supabase
-    .from('entries')
-    .select('*')
-    .eq('account_id', account.id)
-    .order('date', { ascending: true })
+  const [{ data: entries }, { data: lastPayout }] = await Promise.all([
+    supabase
+      .from('entries')
+      .select('*')
+      .eq('account_id', account.id)
+      .order('date', { ascending: true }),
+    supabase
+      .from('payouts')
+      .select('recorded_at')
+      .eq('account_id', account.id)
+      .order('recorded_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ])
 
   let metrics = null
   try {
     const config = await getFirmConfigForAccount(supabase, account)
-    metrics = derive(config, (entries || []) as Entry[], account.payout_count)
+    metrics = derive(config, (entries || []) as Entry[], account.payout_count, lastPayout?.recorded_at ?? null)
   } catch {}
 
   const bufColor = !metrics ? '#5a7a90'

@@ -104,6 +104,10 @@ export default async function EditFirmRuleSizePage({
               <input type="number" step="0.01" name="min_payout" className="input" defaultValue={size.min_payout} />
             </div>
             <div>
+              <label className="label">Min Days Between Payouts (0 = any day, e.g. Tradeify Select Flex = 5)</label>
+              <input type="number" name="min_days_between_payouts" className="input" defaultValue={size.min_days_between_payouts ?? 0} />
+            </div>
+            <div>
               <label className="label">Effective From (when this change takes effect)</label>
               <input
                 type="date"

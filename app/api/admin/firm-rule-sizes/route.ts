@@ -57,6 +57,7 @@ export async function POST(req: NextRequest) {
     consistency_schedule: parsed.consistencySchedule,
     payout_ladder: parsed.payoutLadder,
     min_payout: parsed.minPayout,
+    min_days_between_payouts: parsed.minDaysBetweenPayouts,
     effective_from: parsed.effectiveFrom,
     created_by: auth.user.id,
   })
