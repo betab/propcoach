@@ -1,15 +1,15 @@
 // lib/admin-proposals.ts
-// Shared logic for approving a firm_rule_change_proposals row — the
-// human-in-the-loop gate the monitoring pipeline (a later PR) will write
-// into. Nothing here is called by that pipeline; it only ever INSERTs
-// pending proposals. This is the other half: turning an approved proposal
-// into the same append-only firm_rule_sizes writes an admin would make by
-// hand (see app/api/admin/firm-rule-sizes/[id]/supersede/route.ts) — never
-// a raw UPDATE of a numeric column, for the same reason that route isn't
-// one either.
+// Shared logic for turning firm_rule_change_proposals rows into real
+// changes — both the ingest route (app/api/cron/firm-rules-ingest, which
+// INSERTs pending proposals after diffing a finding against the live DB)
+// and the approve route (which applies an already-reviewed proposal) live
+// here, so both sides agree on what a "diff" is and what a proposal's
+// payload shape means. Nothing here ever writes firm_rule_sizes without
+// going through the same close-out-then-insert pattern as the admin
+// supersede route (never a raw UPDATE of a numeric column) — that applies
+// equally to a human-approved change and a monitoring-detected one.
 //
-// Payload contract for proposal rows — defined here since nothing produces
-// them yet; a later ingest route must conform to this:
+// Payload contract for proposal rows:
 //
 //   update_existing: firm_rule_size_id is set, field_diffs = { column: { old, new } }
 //     where column is one of SIZE_EDITABLE_COLUMNS below.
@@ -24,15 +24,57 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 
-const SIZE_EDITABLE_COLUMNS = [
+export const SIZE_EDITABLE_COLUMNS = [
   'drawdown_amount', 'daily_loss_limit', 'safety_net_buffer', 'mll_lock_buffer',
   'qualifying_day_min', 'min_qualifying_days', 'max_contracts', 'consistency_rule_pct',
   'payout_ladder', 'min_payout', 'extra',
 ] as const
 
-function num(v: unknown, fallback = 0): number {
+export function num(v: unknown, fallback = 0): number {
   const n = Number(v)
   return isNaN(n) ? fallback : n
+}
+
+// Normalizes one SIZE_EDITABLE_COLUMNS value the same way regardless of
+// which side (an old DB row vs. a freshly-submitted finding) it came from,
+// so the two are safe to compare — array/object columns need JSON
+// equality, not ===, and daily_loss_limit's "no DLL" is null, not 0.
+function normalizeSizeColumn(col: (typeof SIZE_EDITABLE_COLUMNS)[number], v: unknown): unknown {
+  switch (col) {
+    case 'payout_ladder':
+      return Array.isArray(v) ? v.map(n => num(n)) : []
+    case 'extra':
+      return v && typeof v === 'object' ? v : {}
+    case 'daily_loss_limit':
+      return v == null || v === '' ? null : num(v)
+    default:
+      return num(v)
+  }
+}
+
+/**
+ * Compares a live firm_rule_sizes row against a finding's proposed values,
+ * column by column, and returns only the columns that actually differ —
+ * the ingest route must never trust a monitoring source's self-reported
+ * diff (see supabase/migrations/003_firm_rules_db.sql), this is what makes
+ * that true. Columns absent from `proposed` are left alone (not a "no
+ * change" claim — the finding just didn't report them).
+ */
+export function computeSizeFieldDiffs(
+  oldRow: Record<string, any>,
+  proposed: Record<string, any>
+): Record<string, { old: unknown; new: unknown }> {
+  const diffs: Record<string, { old: unknown; new: unknown }> = {}
+  for (const col of SIZE_EDITABLE_COLUMNS) {
+    if (!(col in proposed)) continue
+    const oldNormalized = normalizeSizeColumn(col, oldRow[col])
+    const newNormalized = normalizeSizeColumn(col, proposed[col])
+    const changed = col === 'payout_ladder' || col === 'extra'
+      ? JSON.stringify(oldNormalized) !== JSON.stringify(newNormalized)
+      : oldNormalized !== newNormalized
+    if (changed) diffs[col] = { old: oldRow[col], new: newNormalized }
+  }
+  return diffs
 }
 
 function normalizeSizeInput(data: Record<string, any>, effectiveFrom: string) {
