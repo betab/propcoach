@@ -47,6 +47,7 @@ export async function POST(req: NextRequest) {
     drawdown_amount: parsed.drawdownAmount,
     daily_loss_limit: parsed.dailyLossLimit,
     optional_daily_loss_limit: parsed.optionalDailyLossLimit,
+    scale_dll_pct: parsed.scaleDllPct,
     safety_net_buffer: parsed.safetyNetBuffer,
     mll_lock_buffer: parsed.mllLockBuffer,
     qualifying_day_min: parsed.qualifyingDayMin,

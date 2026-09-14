@@ -61,6 +61,7 @@ export interface AccountConfig {
   mllLockAt:         number          // MLL freezes here forever
   dailyLossLimit:    number | null   // effective DLL for this account (base, or the opted-in amount)
   optionalDailyLossLimit: number | null  // the $ amount if this size lets a trader opt into a DLL that isn't already on by default; null = no such option offered
+  scaleDllPct:       number | null   // e.g. Lucid's "LucidScale DLL": once mllLocked, DLL becomes this % of peakBalance instead of a fixed $ amount; null = no such mechanic
   qualifyingDayMin:  number          // min $ profit for a day to qualify
   minQualifyingDays: number          // min count of qualifying days before payout eligible (0 = no gate)
   maxContracts:      number
@@ -75,6 +76,8 @@ export interface DerivedMetrics {
   peakBalance:      number
   currentMLL:       number
   mllLocked:        boolean
+  effectiveDailyLossLimit: number | null  // config.dailyLossLimit, unless dllIsDynamic — then peakBalance * scaleDllPct%
+  dllIsDynamic:     boolean          // true once mllLocked && config.scaleDllPct is set — the DLL shown should be effectiveDailyLossLimit, recomputed daily, not a fixed number
   buffer:           number          // currentBalance - currentMLL
   safetyNet:        number
   aboveSafetyNet:   number          // negative = below safety net

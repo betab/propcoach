@@ -9,6 +9,7 @@ export interface ParsedFirmRuleSize {
   drawdownAmount: number
   dailyLossLimit: number | null
   optionalDailyLossLimit: number | null
+  scaleDllPct: number | null
   safetyNetBuffer: number
   mllLockBuffer: number
   qualifyingDayMin: number
@@ -28,6 +29,8 @@ export function parseFirmRuleSizeForm(formData: FormData): ParsedFirmRuleSize | 
   const dailyLossLimit = dllRaw === '' ? null : Number(dllRaw)
   const optionalDllRaw = String(formData.get('optional_daily_loss_limit') || '').trim()
   const optionalDailyLossLimit = optionalDllRaw === '' ? null : Number(optionalDllRaw)
+  const scaleDllRaw = String(formData.get('scale_dll_pct') || '').trim()
+  const scaleDllPct = scaleDllRaw === '' ? null : Number(scaleDllRaw)
   const safetyNetBuffer = Number(formData.get('safety_net_buffer') || 100)
   const mllLockBuffer = Number(formData.get('mll_lock_buffer') || 100)
   const qualifyingDayMin = Number(formData.get('qualifying_day_min') || 0)
@@ -59,9 +62,12 @@ export function parseFirmRuleSizeForm(formData: FormData): ParsedFirmRuleSize | 
   if (optionalDllRaw !== '' && isNaN(optionalDailyLossLimit as number)) {
     return { error: 'Optional daily loss limit must be a number, or left blank if this size offers no DLL opt-in.' }
   }
+  if (scaleDllRaw !== '' && isNaN(scaleDllPct as number)) {
+    return { error: 'Scale DLL % must be a number, or left blank if this size has no scaling DLL mechanic.' }
+  }
 
   return {
-    accountSize, drawdownType, drawdownAmount, dailyLossLimit, optionalDailyLossLimit, safetyNetBuffer, mllLockBuffer,
+    accountSize, drawdownType, drawdownAmount, dailyLossLimit, optionalDailyLossLimit, scaleDllPct, safetyNetBuffer, mllLockBuffer,
     qualifyingDayMin, minQualifyingDays, maxContracts, consistencyRulePct, payoutLadder, minPayout,
     effectiveFrom,
   }

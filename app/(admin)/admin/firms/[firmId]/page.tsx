@@ -159,6 +159,7 @@ export default async function AdminFirmDetailPage({ params }: { params: Promise<
                       <th className="pb-2 pr-4">Drawdown</th>
                       <th className="pb-2 pr-4">DLL</th>
                       <th className="pb-2 pr-4">Opt-in DLL</th>
+                      <th className="pb-2 pr-4">Scale DLL</th>
                       <th className="pb-2 pr-4">Max Contracts</th>
                       <th className="pb-2 pr-4">Consistency</th>
                       <th className="pb-2 pr-4">Min Qual. Days</th>
@@ -173,6 +174,7 @@ export default async function AdminFirmDetailPage({ params }: { params: Promise<
                         <td className="py-2 pr-4 text-muted">{fmt(s.drawdown_amount)}</td>
                         <td className="py-2 pr-4 text-muted">{fmt(s.daily_loss_limit)}</td>
                         <td className="py-2 pr-4 text-muted">{fmt(s.optional_daily_loss_limit)}</td>
+                        <td className="py-2 pr-4 text-muted">{s.scale_dll_pct ? `${Number(s.scale_dll_pct)}%` : '—'}</td>
                         <td className="py-2 pr-4 text-muted">{s.max_contracts}</td>
                         <td className="py-2 pr-4 text-muted">{Number(s.consistency_rule_pct)}%</td>
                         <td className="py-2 pr-4 text-muted">{s.min_qualifying_days}</td>
