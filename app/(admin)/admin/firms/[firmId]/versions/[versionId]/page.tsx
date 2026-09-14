@@ -58,6 +58,7 @@ export default async function AdminVersionSizesPage({
                   <th className="pb-2 pr-4">Max Contracts</th>
                   <th className="pb-2 pr-4">Consistency</th>
                   <th className="pb-2 pr-4">Min Qual. Days</th>
+                  <th className="pb-2 pr-4">Payout Gap</th>
                   <th className="pb-2 pr-4">Effective</th>
                   <th className="pb-2"></th>
                 </tr>
@@ -74,6 +75,7 @@ export default async function AdminVersionSizesPage({
                     <td className="py-2 pr-4 text-muted">{s.max_contracts}</td>
                     <td className="py-2 pr-4 text-muted">{s.consistency_schedule?.length ? s.consistency_schedule.map((n: number) => Number(n)).join('→') + '%' : `${Number(s.consistency_rule_pct)}%`}</td>
                     <td className="py-2 pr-4 text-muted">{s.min_qualifying_days}</td>
+                    <td className="py-2 pr-4 text-muted">{s.min_days_between_payouts > 0 ? `${s.min_days_between_payouts}d` : 'Any day'}</td>
                     <td className="py-2 pr-4 text-dim whitespace-nowrap">
                       {s.effective_from}{s.effective_to ? ` → ${s.effective_to}` : ' →'}
                     </td>
@@ -159,6 +161,10 @@ export default async function AdminVersionSizesPage({
             <div>
               <label className="label">Min Payout ($)</label>
               <input type="number" step="0.01" name="min_payout" className="input" placeholder="500" />
+            </div>
+            <div>
+              <label className="label">Min Days Between Payouts (0 = any day, e.g. Tradeify Select Flex = 5)</label>
+              <input type="number" name="min_days_between_payouts" className="input" defaultValue={0} />
             </div>
             <div>
               <label className="label">Effective From</label>

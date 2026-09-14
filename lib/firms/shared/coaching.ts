@@ -119,6 +119,14 @@ export function buildCoaching(
       note:     `Balance and consistency both clear, but you need ${config.minQualifyingDays - m.qualifyingDays} more qualifying day${config.minQualifyingDays - m.qualifyingDays === 1 ? '' : 's'} ($${config.qualifyingDayMin}+ profit) before this firm allows a payout request.`,
       severity: 'warn',
     })
+  } else if (m.aboveSafetyNet >= config.minPayout && m.consistencyOk && m.qualifyingDays >= config.minQualifyingDays && !m.payoutFrequencyOk) {
+    const daysLeft = config.minDaysBetweenPayouts - (m.daysSinceLastPayout ?? 0)
+    rules.push({
+      label:    'Payout — Too Soon Since Last Payout',
+      value:    `${daysLeft} day${daysLeft === 1 ? '' : 's'} left`,
+      note:     `Everything else clears, but this account requires ${config.minDaysBetweenPayouts} days between payout requests. Come back in ${daysLeft} day${daysLeft === 1 ? '' : 's'}.`,
+      severity: 'warn',
+    })
   }
 
   // ── Recent trend ──────────────────────────────────────────────────────────

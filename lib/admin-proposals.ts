@@ -19,15 +19,17 @@
 //                                   versions?: [{ version_key, version_label, is_current?, sizes?: [sizeFields] }] }
 //
 //   sizeFields = { account_size, drawdown_type, drawdown_amount, daily_loss_limit,
-//     safety_net_buffer, mll_lock_buffer, qualifying_day_min, min_qualifying_days,
-//     max_contracts, consistency_rule_pct, payout_ladder, min_payout, extra?, effective_from? }
+//     optional_daily_loss_limit?, scale_dll_pct?, safety_net_buffer, mll_lock_buffer,
+//     qualifying_day_min, min_qualifying_days, max_contracts, consistency_rule_pct,
+//     consistency_schedule?, payout_ladder, min_payout, min_days_between_payouts,
+//     extra?, effective_from? }
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 export const SIZE_EDITABLE_COLUMNS = [
   'drawdown_amount', 'daily_loss_limit', 'optional_daily_loss_limit', 'scale_dll_pct', 'safety_net_buffer', 'mll_lock_buffer',
   'qualifying_day_min', 'min_qualifying_days', 'max_contracts', 'consistency_rule_pct', 'consistency_schedule',
-  'payout_ladder', 'min_payout', 'extra',
+  'payout_ladder', 'min_payout', 'min_days_between_payouts', 'extra',
 ] as const
 
 export function num(v: unknown, fallback = 0): number {
@@ -101,6 +103,7 @@ function normalizeSizeInput(data: Record<string, any>, effectiveFrom: string) {
       ? data.consistency_schedule.map((n: unknown) => num(n)) : null,
     payout_ladder:        Array.isArray(data.payout_ladder) ? data.payout_ladder.map((n: unknown) => num(n)) : [],
     min_payout:           num(data.min_payout, 0),
+    min_days_between_payouts: num(data.min_days_between_payouts, 0),
     extra:                data.extra && typeof data.extra === 'object' ? data.extra : {},
     effective_from:       data.effective_from || effectiveFrom,
   }

@@ -30,7 +30,8 @@ function clamp(v: number, lo: number, hi: number) { return Math.max(lo, Math.min
 export function derive(
   config: AccountConfig,
   entries: Entry[],
-  payoutCount: number
+  payoutCount: number,
+  lastPayoutAt: string | Date | null = null
 ): DerivedMetrics {
   let bal  = config.accountSize
   let peak = config.accountSize
@@ -76,7 +77,20 @@ export function derive(
     : config.consistencyRule
   const consOk       = activeConsistencyRule === 0 || consPct < activeConsistencyRule
 
-  const payoutEligible = aboveSN >= config.minPayout && consOk && qualDays >= config.minQualifyingDays
+  // Tradeify Select's Daily-vs-Flex payout cadence: Flex requires
+  // minDaysBetweenPayouts (5) days since the account's last recorded
+  // payout before the next one is eligible; Daily (and every other firm,
+  // minDaysBetweenPayouts === 0) has no such gate. No prior payout means
+  // the gate can't have failed to elapse — the first payout is never
+  // blocked by it.
+  const daysSinceLastPayout = lastPayoutAt
+    ? Math.floor((Date.now() - new Date(lastPayoutAt).getTime()) / 86_400_000)
+    : null
+  const payoutFrequencyOk = config.minDaysBetweenPayouts === 0
+    || daysSinceLastPayout === null
+    || daysSinceLastPayout >= config.minDaysBetweenPayouts
+
+  const payoutEligible = aboveSN >= config.minPayout && consOk && qualDays >= config.minQualifyingDays && payoutFrequencyOk
   const nextPayoutMax  = config.payoutLadder[
     Math.min(payoutCount, config.payoutLadder.length - 1)
   ]
@@ -106,6 +120,8 @@ export function derive(
     consistencyPct:  consPct,
     consistencyOk:   consOk,
     activeConsistencyRule,
+    daysSinceLastPayout,
+    payoutFrequencyOk,
     payoutEligible,
     nextPayoutMax,
     mllLockProgress: progress,

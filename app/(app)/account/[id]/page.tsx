@@ -23,16 +23,25 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
 
   if (!account) notFound()
 
-  const { data: rawEntries } = await supabase
-    .from('entries')
-    .select('*')
-    .eq('account_id', account.id)
-    .order('date', { ascending: true })
+  const [{ data: rawEntries }, { data: lastPayout }] = await Promise.all([
+    supabase
+      .from('entries')
+      .select('*')
+      .eq('account_id', account.id)
+      .order('date', { ascending: true }),
+    supabase
+      .from('payouts')
+      .select('recorded_at')
+      .eq('account_id', account.id)
+      .order('recorded_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ])
 
   const entries = (rawEntries || []) as Entry[]
 
   const config = await getFirmConfigForAccount(supabase, account)
-  const m      = derive(config, entries, account.payout_count)
+  const m      = derive(config, entries, account.payout_count, lastPayout?.recorded_at ?? null)
   const coach  = buildCoaching(config, m, entries, account.payout_count)
 
   const bufColor = m.buffer < 500 ? '#ff4444' : m.buffer < 1200 ? '#ffaa00' : '#00ff88'
@@ -119,7 +128,7 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
           { label: 'Daily Loss Limit', value: m.effectiveDailyLossLimit ? fmt(m.effectiveDailyLossLimit) : 'None', sub: m.dllIsDynamic ? `${config.scaleDllPct}% of peak balance — moves daily` : m.effectiveDailyLossLimit ? "Pauses — won't kill" : 'No DLL on this account', color: '#ffaa00' },
           { label: 'Consistency',      value: m.consistencyPct.toFixed(0) + '%', sub: m.activeConsistencyRule === 0 ? 'No consistency rule' : m.consistencyOk ? `✅ Under ${m.activeConsistencyRule}% — OK` : `❌ Over ${m.activeConsistencyRule}% — Blocked`, color: m.consistencyOk ? '#00ff88' : '#ff4444' },
           { label: 'Qualifying Days',  value: String(m.qualifyingDays), sub: `$${config.qualifyingDayMin}+ days logged`, color: '#7aa3d4' },
-          { label: `Payout #${account.payout_count + 1}`, value: fmt(m.nextPayoutMax), sub: m.payoutEligible ? '✅ Eligible now' : 'Not eligible yet', color: m.payoutEligible ? '#00ff88' : '#5a7a90' },
+          { label: `Payout #${account.payout_count + 1}`, value: fmt(m.nextPayoutMax), sub: m.payoutEligible ? '✅ Eligible now' : !m.payoutFrequencyOk ? `⏳ ${config.minDaysBetweenPayouts - (m.daysSinceLastPayout ?? 0)}d until next payout` : 'Not eligible yet', color: m.payoutEligible ? '#00ff88' : '#5a7a90' },
         ].map(s => (
           <div key={s.label} className="card">
             <div className="stat-label">{s.label}</div>

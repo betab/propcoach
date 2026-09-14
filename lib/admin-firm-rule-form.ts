@@ -19,6 +19,7 @@ export interface ParsedFirmRuleSize {
   consistencySchedule: number[] | null
   payoutLadder: number[]
   minPayout: number
+  minDaysBetweenPayouts: number
   effectiveFrom: string
 }
 
@@ -39,6 +40,7 @@ export function parseFirmRuleSizeForm(formData: FormData): ParsedFirmRuleSize | 
   const maxContracts = Number(formData.get('max_contracts'))
   const consistencyRulePct = Number(formData.get('consistency_rule_pct') || 0)
   const minPayout = Number(formData.get('min_payout') || 0)
+  const minDaysBetweenPayouts = Number(formData.get('min_days_between_payouts') || 0)
   const effectiveFrom = String(formData.get('effective_from') || '').trim()
   const ladderRaw = String(formData.get('payout_ladder') || '').trim()
   const consistencyScheduleRaw = String(formData.get('consistency_schedule') || '').trim()
@@ -75,10 +77,13 @@ export function parseFirmRuleSizeForm(formData: FormData): ParsedFirmRuleSize | 
   if (scaleDllRaw !== '' && isNaN(scaleDllPct as number)) {
     return { error: 'Scale DLL % must be a number, or left blank if this size has no scaling DLL mechanic.' }
   }
+  if (isNaN(minDaysBetweenPayouts)) {
+    return { error: 'Min days between payouts must be a number (0 = no gate).' }
+  }
 
   return {
     accountSize, drawdownType, drawdownAmount, dailyLossLimit, optionalDailyLossLimit, scaleDllPct, safetyNetBuffer, mllLockBuffer,
     qualifyingDayMin, minQualifyingDays, maxContracts, consistencyRulePct, consistencySchedule, payoutLadder, minPayout,
-    effectiveFrom,
+    minDaysBetweenPayouts, effectiveFrom,
   }
 }
