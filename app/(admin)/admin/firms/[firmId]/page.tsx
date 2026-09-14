@@ -23,6 +23,9 @@ export default async function AdminFirmDetailPage({ params }: { params: Promise<
   const { data: firm } = await supabase.from('firms').select('*').eq('id', firmId).single()
   if (!firm) notFound()
 
+  const { data: sourceDomains } = await supabase
+    .from('firm_source_domains').select('*').eq('firm_id', firmId).order('domain')
+
   const { data: versions } = await supabase
     .from('firm_rule_versions')
     .select('*')
@@ -83,6 +86,40 @@ export default async function AdminFirmDetailPage({ params }: { params: Promise<
           </div>
           <button type="submit" className="btn border-blue text-blue hover:bg-blue/10">
             Save Details
+          </button>
+        </form>
+      </div>
+
+      {/* Source domains — the allowlist the fetch-proxy endpoint checks
+          before pulling anything from this firm's site on the research
+          Routine's behalf (app/api/cron/firm-source-fetch). Adding a
+          domain here is the entire "onboard a new firm's site" step. */}
+      <div className="card mb-4">
+        <div className="stat-label mb-3">Source Domains</div>
+        <p className="text-xs text-muted mb-3">
+          Hostnames the rule-research fetch proxy is allowed to pull from for this firm. Exact match only —
+          add each subdomain you need (e.g. both <code>tradeify.co</code> and <code>help.tradeify.co</code>).
+        </p>
+        {(sourceDomains || []).length > 0 ? (
+          <ul className="space-y-2 mb-4">
+            {(sourceDomains || []).map(d => (
+              <li key={d.id} className="flex items-center justify-between text-xs">
+                <span className="text-white font-mono">{d.domain}</span>
+                <form action={`/api/admin/firms/${firm.id}/source-domains/${d.id}/delete`} method="POST">
+                  <button type="submit" className="text-[10px] tracking-widest uppercase text-danger hover:underline">
+                    Remove
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="text-xs text-dim mb-4">No source domains configured — the fetch proxy will refuse everything for this firm.</div>
+        )}
+        <form action={`/api/admin/firms/${firm.id}/source-domains`} method="POST" className="flex gap-2">
+          <input type="text" name="domain" className="input" placeholder="e.g. help.tradeify.co" required />
+          <button type="submit" className="btn border-amber text-amber hover:bg-amber/10" style={{ width: 'auto', padding: '8px 16px' }}>
+            + Add
           </button>
         </form>
       </div>
