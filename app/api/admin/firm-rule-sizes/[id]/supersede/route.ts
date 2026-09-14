@@ -57,6 +57,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     min_qualifying_days: parsed.minQualifyingDays,
     max_contracts: parsed.maxContracts,
     consistency_rule_pct: parsed.consistencyRulePct,
+    consistency_schedule: parsed.consistencySchedule,
     payout_ladder: parsed.payoutLadder,
     min_payout: parsed.minPayout,
     effective_from: parsed.effectiveFrom,

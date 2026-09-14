@@ -26,7 +26,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 
 export const SIZE_EDITABLE_COLUMNS = [
   'drawdown_amount', 'daily_loss_limit', 'optional_daily_loss_limit', 'scale_dll_pct', 'safety_net_buffer', 'mll_lock_buffer',
-  'qualifying_day_min', 'min_qualifying_days', 'max_contracts', 'consistency_rule_pct',
+  'qualifying_day_min', 'min_qualifying_days', 'max_contracts', 'consistency_rule_pct', 'consistency_schedule',
   'payout_ladder', 'min_payout', 'extra',
 ] as const
 
@@ -43,6 +43,10 @@ function normalizeSizeColumn(col: (typeof SIZE_EDITABLE_COLUMNS)[number], v: unk
   switch (col) {
     case 'payout_ladder':
       return Array.isArray(v) ? v.map(n => num(n)) : []
+    case 'consistency_schedule':
+      // Nullable array, unlike payout_ladder — null/[] both mean "no
+      // escalation, use the flat consistency_rule_pct" and must compare equal.
+      return Array.isArray(v) && v.length > 0 ? v.map(n => num(n)) : null
     case 'extra':
       return v && typeof v === 'object' ? v : {}
     case 'daily_loss_limit':
@@ -71,7 +75,7 @@ export function computeSizeFieldDiffs(
     if (!(col in proposed)) continue
     const oldNormalized = normalizeSizeColumn(col, oldRow[col])
     const newNormalized = normalizeSizeColumn(col, proposed[col])
-    const changed = col === 'payout_ladder' || col === 'extra'
+    const changed = col === 'payout_ladder' || col === 'extra' || col === 'consistency_schedule'
       ? JSON.stringify(oldNormalized) !== JSON.stringify(newNormalized)
       : oldNormalized !== newNormalized
     if (changed) diffs[col] = { old: oldRow[col], new: newNormalized }
@@ -93,6 +97,8 @@ function normalizeSizeInput(data: Record<string, any>, effectiveFrom: string) {
     min_qualifying_days:  num(data.min_qualifying_days, 0),
     max_contracts:        num(data.max_contracts),
     consistency_rule_pct: num(data.consistency_rule_pct, 0),
+    consistency_schedule: Array.isArray(data.consistency_schedule) && data.consistency_schedule.length > 0
+      ? data.consistency_schedule.map((n: unknown) => num(n)) : null,
     payout_ladder:        Array.isArray(data.payout_ladder) ? data.payout_ladder.map((n: unknown) => num(n)) : [],
     min_payout:           num(data.min_payout, 0),
     extra:                data.extra && typeof data.extra === 'object' ? data.extra : {},

@@ -72,7 +72,7 @@ export default async function AdminVersionSizesPage({
                     <td className="py-2 pr-4 text-muted">{fmt(s.optional_daily_loss_limit)}</td>
                     <td className="py-2 pr-4 text-muted">{s.scale_dll_pct ? `${Number(s.scale_dll_pct)}%` : '—'}</td>
                     <td className="py-2 pr-4 text-muted">{s.max_contracts}</td>
-                    <td className="py-2 pr-4 text-muted">{Number(s.consistency_rule_pct)}%</td>
+                    <td className="py-2 pr-4 text-muted">{s.consistency_schedule?.length ? s.consistency_schedule.map((n: number) => Number(n)).join('→') + '%' : `${Number(s.consistency_rule_pct)}%`}</td>
                     <td className="py-2 pr-4 text-muted">{s.min_qualifying_days}</td>
                     <td className="py-2 pr-4 text-dim whitespace-nowrap">
                       {s.effective_from}{s.effective_to ? ` → ${s.effective_to}` : ' →'}
@@ -168,6 +168,10 @@ export default async function AdminVersionSizesPage({
           <div>
             <label className="label">Payout Ladder (comma-separated $ amounts)</label>
             <input type="text" name="payout_ladder" className="input" placeholder="1000,1250,1500,1500,1750,2000" />
+          </div>
+          <div>
+            <label className="label">Consistency Schedule (comma-separated %, blank = flat rate above, escalates by payout count)</label>
+            <input type="text" name="consistency_schedule" className="input" placeholder="20,25,30" />
           </div>
 
           <button type="submit" className="btn border-amber text-amber hover:bg-amber/10">

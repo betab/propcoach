@@ -176,7 +176,7 @@ export default async function AdminFirmDetailPage({ params }: { params: Promise<
                         <td className="py-2 pr-4 text-muted">{fmt(s.optional_daily_loss_limit)}</td>
                         <td className="py-2 pr-4 text-muted">{s.scale_dll_pct ? `${Number(s.scale_dll_pct)}%` : '—'}</td>
                         <td className="py-2 pr-4 text-muted">{s.max_contracts}</td>
-                        <td className="py-2 pr-4 text-muted">{Number(s.consistency_rule_pct)}%</td>
+                        <td className="py-2 pr-4 text-muted">{s.consistency_schedule?.length ? s.consistency_schedule.map((n: number) => Number(n)).join('→') + '%' : `${Number(s.consistency_rule_pct)}%`}</td>
                         <td className="py-2 pr-4 text-muted">{s.min_qualifying_days}</td>
                         <td className="py-2 pr-4 text-dim whitespace-nowrap">
                           {s.effective_from}{s.effective_to ? ` → ${s.effective_to}` : ' →'}

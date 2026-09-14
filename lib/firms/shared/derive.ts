@@ -65,7 +65,16 @@ export function derive(
   const totalProfit  = winEntries.reduce((s, e) => s + e.pnl, 0)
   const biggestDay   = winEntries.length ? Math.max(...winEntries.map(e => e.pnl)) : 0
   const consPct      = totalProfit > 0 ? (biggestDay / totalProfit) * 100 : 0
-  const consOk       = config.consistencyRule === 0 || consPct < config.consistencyRule
+
+  // Tradeify Lightning's escalating consistency rule: the cap that actually
+  // applies depends on how many payouts the account has already taken —
+  // same "index by payout number, clamp at the last entry" pattern as
+  // payoutLadder below. Firms without a schedule (every firm except
+  // Lightning) just use the flat consistencyRule at every payout count.
+  const activeConsistencyRule = config.consistencyRuleSchedule && config.consistencyRuleSchedule.length > 0
+    ? config.consistencyRuleSchedule[Math.min(payoutCount, config.consistencyRuleSchedule.length - 1)]
+    : config.consistencyRule
+  const consOk       = activeConsistencyRule === 0 || consPct < activeConsistencyRule
 
   const payoutEligible = aboveSN >= config.minPayout && consOk && qualDays >= config.minQualifyingDays
   const nextPayoutMax  = config.payoutLadder[
@@ -96,6 +105,7 @@ export function derive(
     biggestDay,
     consistencyPct:  consPct,
     consistencyOk:   consOk,
+    activeConsistencyRule,
     payoutEligible,
     nextPayoutMax,
     mllLockProgress: progress,
