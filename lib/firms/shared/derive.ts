@@ -11,7 +11,18 @@ import type { AccountConfig, Entry, DerivedMetrics } from '../types'
 
 function computeMLL(config: AccountConfig, peakBalance: number): number {
   const raw = peakBalance - config.drawdownAmount
-  return Math.max(raw, config.mllLockAt)
+  // Trailing MLL rises with peak balance, then LOCKS (stops rising) once it
+  // reaches mllLockAt — a ceiling, not a floor: this must be Math.min, not
+  // Math.max. Getting this backwards makes every account look prematurely
+  // "locked" (mllLocked true, buffer negative) from day one, before any
+  // trading — peak starts at accountSize, so raw = accountSize -
+  // drawdownAmount = startingMLL on day 0, which is always below
+  // mllLockAt (= accountSize + a small buffer); Math.max wrongly clamped
+  // that UP to mllLockAt instead of leaving it at the true starting floor.
+  // peak is monotonically non-decreasing from accountSize, so raw can
+  // never fall below startingMLL — Math.min(raw, mllLockAt) alone is
+  // correct with no additional lower clamp needed.
+  return Math.min(raw, config.mllLockAt)
 }
 
 function clamp(v: number, lo: number, hi: number) { return Math.max(lo, Math.min(hi, v)) }
