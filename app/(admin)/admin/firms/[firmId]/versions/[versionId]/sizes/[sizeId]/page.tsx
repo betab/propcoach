@@ -68,6 +68,10 @@ export default async function EditFirmRuleSizePage({
               <input type="number" step="0.01" name="daily_loss_limit" className="input" defaultValue={size.daily_loss_limit ?? ''} />
             </div>
             <div>
+              <label className="label">Optional DLL Opt-In ($, blank = firm offers no opt-in)</label>
+              <input type="number" step="0.01" name="optional_daily_loss_limit" className="input" defaultValue={size.optional_daily_loss_limit ?? ''} />
+            </div>
+            <div>
               <label className="label">Safety Net Buffer ($)</label>
               <input type="number" step="0.01" name="safety_net_buffer" className="input" defaultValue={size.safety_net_buffer} />
             </div>

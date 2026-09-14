@@ -25,7 +25,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 export const SIZE_EDITABLE_COLUMNS = [
-  'drawdown_amount', 'daily_loss_limit', 'safety_net_buffer', 'mll_lock_buffer',
+  'drawdown_amount', 'daily_loss_limit', 'optional_daily_loss_limit', 'safety_net_buffer', 'mll_lock_buffer',
   'qualifying_day_min', 'min_qualifying_days', 'max_contracts', 'consistency_rule_pct',
   'payout_ladder', 'min_payout', 'extra',
 ] as const
@@ -46,6 +46,7 @@ function normalizeSizeColumn(col: (typeof SIZE_EDITABLE_COLUMNS)[number], v: unk
     case 'extra':
       return v && typeof v === 'object' ? v : {}
     case 'daily_loss_limit':
+    case 'optional_daily_loss_limit':
       return v == null || v === '' ? null : num(v)
     default:
       return num(v)
@@ -83,6 +84,7 @@ function normalizeSizeInput(data: Record<string, any>, effectiveFrom: string) {
     drawdown_type:        String(data.drawdown_type || ''),
     drawdown_amount:      num(data.drawdown_amount),
     daily_loss_limit:     data.daily_loss_limit == null || data.daily_loss_limit === '' ? null : num(data.daily_loss_limit),
+    optional_daily_loss_limit: data.optional_daily_loss_limit == null || data.optional_daily_loss_limit === '' ? null : num(data.optional_daily_loss_limit),
     safety_net_buffer:    num(data.safety_net_buffer, 100),
     mll_lock_buffer:      num(data.mll_lock_buffer, 100),
     qualifying_day_min:   num(data.qualifying_day_min, 0),

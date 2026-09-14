@@ -10,7 +10,8 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
-  const { firm_id, size, drawdown_type, version, nickname, account_number, start_date } = body
+  const { firm_id, size, drawdown_type, version, nickname, account_number, start_date, daily_loss_limit_enabled } = body
+  const dllEnabled = daily_loss_limit_enabled === true
 
   if (!firm_id || !size || !drawdown_type || !version || !start_date) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -23,11 +24,22 @@ export async function POST(req: NextRequest) {
   // (the same class of bug fixed in #5's data-driven pickers, closed off
   // here for any caller that bypasses the UI, e.g. a retry or a future
   // non-browser client).
+  let config
   try {
-    await getCurrentFirmConfig(supabase, firm_id, size, drawdown_type as DrawdownType, version)
+    config = await getCurrentFirmConfig(supabase, firm_id, size, drawdown_type as DrawdownType, version, dllEnabled)
   } catch {
     return NextResponse.json(
       { error: 'No rules found for that firm, size, drawdown type, and version combination.' },
+      { status: 400 }
+    )
+  }
+
+  // Defense in depth: refuse a DLL opt-in claim for a size that doesn't
+  // actually offer one, same reasoning as the resolvability check above —
+  // don't trust a client-supplied flag the UI wouldn't have let through.
+  if (dllEnabled && config.optionalDailyLossLimit == null) {
+    return NextResponse.json(
+      { error: 'This firm/size does not offer an optional Daily Loss Limit.' },
       { status: 400 }
     )
   }
@@ -43,6 +55,7 @@ export async function POST(req: NextRequest) {
       drawdown_type,
       version,
       start_date,
+      daily_loss_limit_enabled: dllEnabled,
     })
     .select()
     .single()
