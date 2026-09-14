@@ -200,7 +200,16 @@ export async function applyProposal(
         id: data.id, name: data.name, logo_url: data.logo_url || null,
         is_active: data.is_active ?? false, coming_soon: data.coming_soon ?? true,
       })
-      if (firmError) return { error: firmError.message }
+      if (firmError) {
+        // 23505 = unique_violation. A duplicate new_firm proposal for the
+        // same id (e.g. two submissions before either was reviewed) hits
+        // firms_pkey here — give a clear, actionable message instead of
+        // the raw Postgres error.
+        if (firmError.code === '23505') {
+          return { error: `A firm with id '${data.id}' already exists — reject this proposal instead; it's a duplicate.` }
+        }
+        return { error: firmError.message }
+      }
 
       for (const v of Array.isArray(data.versions) ? data.versions : []) {
         if (!v.version_key || !v.version_label) continue
