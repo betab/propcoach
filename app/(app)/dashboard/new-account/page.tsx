@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { getAllFirms, getFirmVersions, getAvailableSizes } from '@/lib/firms'
-import type { FirmMeta, FirmVersion } from '@/lib/firms/types'
+import { getAllFirms, getFirmVersions, getAvailableSizes, getCurrentFirmConfig } from '@/lib/firms'
+import type { FirmMeta, FirmVersion, DrawdownType } from '@/lib/firms/types'
 
 export default function NewAccountPage() {
   const router = useRouter()
@@ -21,6 +21,8 @@ export default function NewAccountPage() {
   const [nickname,      setNickname]      = useState('')
   const [accountNumber, setAccountNumber] = useState('')
   const [startDate,     setStartDate]     = useState(new Date().toISOString().slice(0, 10))
+  const [optionalDll,   setOptionalDll]   = useState<number | null>(null)
+  const [dllEnabled,    setDllEnabled]    = useState(false)
   const [error,         setError]         = useState('')
   const [loading,       setLoading]       = useState(false)
 
@@ -56,6 +58,25 @@ export default function NewAccountPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [firmId, version])
 
+  // Preview whether this exact combination offers an optional Daily Loss
+  // Limit opt-in (Lucid Trading, e.g.) — most firms/sizes don't, in which
+  // case the checkbox below just doesn't render. Resets the trader's choice
+  // whenever the option disappears (a different selection that doesn't
+  // offer it) so a stale "enabled" can't silently carry over.
+  useEffect(() => {
+    if (!version || !size) { setOptionalDll(null); return }
+    let cancelled = false
+    getCurrentFirmConfig(supabase, firmId, size, drawdownType as DrawdownType, version)
+      .then(config => { if (!cancelled) setOptionalDll(config.optionalDailyLossLimit) })
+      .catch(() => { if (!cancelled) setOptionalDll(null) })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firmId, size, drawdownType, version])
+
+  useEffect(() => {
+    if (optionalDll == null) setDllEnabled(false)
+  }, [optionalDll])
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
@@ -75,6 +96,7 @@ export default function NewAccountPage() {
         nickname,
         account_number: accountNumber,
         start_date:     startDate,
+        daily_loss_limit_enabled: dllEnabled,
       }),
     })
     const data = await res.json()
@@ -175,6 +197,28 @@ export default function NewAccountPage() {
               ))}
             </div>
           </div>
+
+          {/* Optional Daily Loss Limit — only shown when this firm/size offers one (e.g. Lucid Trading). Chosen once, at creation, same as on the firm's own site. */}
+          {optionalDll != null && (
+            <div>
+              <label className="label">Daily Loss Limit</label>
+              <button
+                type="button"
+                onClick={() => setDllEnabled(v => !v)}
+                className={`w-full p-3 rounded border text-left transition-all ${
+                  dllEnabled ? 'border-green bg-green/5' : 'border-border hover:border-blue/40'
+                }`}
+              >
+                <div className={`text-xs font-semibold ${dllEnabled ? 'text-green' : 'text-muted'}`}>
+                  {dllEnabled ? `Enabled — $${optionalDll.toLocaleString()}/day` : 'Optional — off by default'}
+                </div>
+                <div className="text-[10px] text-dim mt-0.5">
+                  This firm lets you opt into a ${optionalDll.toLocaleString()} daily loss limit. This choice can't
+                  be changed after the account is created.
+                </div>
+              </button>
+            </div>
+          )}
 
           {/* Version — only shown when this firm has more than one */}
           {versions.length > 1 && (

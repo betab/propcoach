@@ -49,6 +49,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     drawdown_type: oldRow.drawdown_type,
     drawdown_amount: parsed.drawdownAmount,
     daily_loss_limit: parsed.dailyLossLimit,
+    optional_daily_loss_limit: parsed.optionalDailyLossLimit,
     safety_net_buffer: parsed.safetyNetBuffer,
     mll_lock_buffer: parsed.mllLockBuffer,
     qualifying_day_min: parsed.qualifyingDayMin,

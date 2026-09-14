@@ -44,6 +44,7 @@ export interface Account {
   is_active:      boolean
   status:         AccountStatus
   payout_count:   number
+  daily_loss_limit_enabled: boolean  // trader's one-time opt-in, set at creation — see migration 006
   created_at:     string
 }
 
@@ -58,7 +59,8 @@ export interface AccountConfig {
   startingMLL:       number          // accountSize - drawdownAmount
   safetyNet:         number          // point at which MLL locks + payouts unlock
   mllLockAt:         number          // MLL freezes here forever
-  dailyLossLimit:    number | null   // null = no DLL (e.g. Intraday accounts)
+  dailyLossLimit:    number | null   // effective DLL for this account (base, or the opted-in amount)
+  optionalDailyLossLimit: number | null  // the $ amount if this size lets a trader opt into a DLL that isn't already on by default; null = no such option offered
   qualifyingDayMin:  number          // min $ profit for a day to qualify
   minQualifyingDays: number          // min count of qualifying days before payout eligible (0 = no gate)
   maxContracts:      number

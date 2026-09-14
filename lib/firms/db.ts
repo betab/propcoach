@@ -24,6 +24,7 @@ type FirmRuleSizeRow = {
   drawdown_type:        DrawdownType
   drawdown_amount:      number | string
   daily_loss_limit:     number | string | null
+  optional_daily_loss_limit: number | string | null
   safety_net_buffer:    number | string
   mll_lock_buffer:      number | string
   qualifying_day_min:   number | string
@@ -38,10 +39,13 @@ function buildConfig(
   row: FirmRuleSizeRow,
   firmId: string,
   firmName: string,
-  firmLogo: string
+  firmLogo: string,
+  dllEnabled: boolean = false
 ): AccountConfig {
   const size           = row.account_size
   const drawdownAmount = Number(row.drawdown_amount)
+  const baseDll        = row.daily_loss_limit == null ? null : Number(row.daily_loss_limit)
+  const optionalDll    = row.optional_daily_loss_limit == null ? null : Number(row.optional_daily_loss_limit)
   return {
     firmId,
     firmName,
@@ -52,7 +56,12 @@ function buildConfig(
     startingMLL:       size - drawdownAmount,
     safetyNet:         size + drawdownAmount + Number(row.safety_net_buffer),
     mllLockAt:         size + Number(row.mll_lock_buffer),
-    dailyLossLimit:    row.daily_loss_limit == null ? null : Number(row.daily_loss_limit),
+    // The account's opt-in choice (accounts.daily_loss_limit_enabled) swaps
+    // in the optional DLL amount when set — everything downstream of this
+    // function (derive.ts, coaching.ts, account pages) just sees the final
+    // effective number and never needs to know the toggle exists.
+    dailyLossLimit:    dllEnabled && optionalDll != null ? optionalDll : baseDll,
+    optionalDailyLossLimit: optionalDll,
     qualifyingDayMin:  Number(row.qualifying_day_min),
     minQualifyingDays: row.min_qualifying_days,
     maxContracts:      row.max_contracts,
@@ -103,7 +112,7 @@ async function getFirmMeta(supabase: SupabaseClient, firmId: string) {
 /** Resolve config for an EXISTING account, as of its own start_date. */
 export async function getFirmConfigForAccount(
   supabase: SupabaseClient,
-  account: { firm_id: string; size: number; drawdown_type: DrawdownType; version: string; start_date: string }
+  account: { firm_id: string; size: number; drawdown_type: DrawdownType; version: string; start_date: string; daily_loss_limit_enabled?: boolean }
 ): Promise<AccountConfig> {
   const [firm, row] = await Promise.all([
     getFirmMeta(supabase, account.firm_id),
@@ -114,7 +123,7 @@ export async function getFirmConfigForAccount(
       `No rules found for ${account.firm_id} ${account.version} $${account.size} ${account.drawdown_type} as of ${account.start_date}`
     )
   }
-  return buildConfig(row, account.firm_id, firm.name, firm.logo)
+  return buildConfig(row, account.firm_id, firm.name, firm.logo, account.daily_loss_limit_enabled ?? false)
 }
 
 /** Resolve the CURRENT config for a firm/size/type/version, as of today — used by the new-account flow. */
@@ -123,7 +132,8 @@ export async function getCurrentFirmConfig(
   firmId: string,
   size: number,
   drawdownType: DrawdownType,
-  versionKey: string
+  versionKey: string,
+  dllEnabled: boolean = false
 ): Promise<AccountConfig> {
   const today = new Date().toISOString().slice(0, 10)
   const [firm, row] = await Promise.all([
@@ -133,7 +143,7 @@ export async function getCurrentFirmConfig(
   if (!row) {
     throw new Error(`No current rules found for ${firmId} ${versionKey} $${size} ${drawdownType}`)
   }
-  return buildConfig(row, firmId, firm.name, firm.logo)
+  return buildConfig(row, firmId, firm.name, firm.logo, dllEnabled)
 }
 
 export async function getAllFirms(supabase: SupabaseClient): Promise<FirmMeta[]> {

@@ -53,6 +53,7 @@ export default async function AdminVersionSizesPage({
                   <th className="pb-2 pr-4">Type</th>
                   <th className="pb-2 pr-4">Drawdown</th>
                   <th className="pb-2 pr-4">DLL</th>
+                  <th className="pb-2 pr-4">Opt-in DLL</th>
                   <th className="pb-2 pr-4">Max Contracts</th>
                   <th className="pb-2 pr-4">Consistency</th>
                   <th className="pb-2 pr-4">Min Qual. Days</th>
@@ -67,6 +68,7 @@ export default async function AdminVersionSizesPage({
                     <td className="py-2 pr-4 text-muted">{s.drawdown_type === 'trailing_eod' ? 'EOD' : 'Intraday'}</td>
                     <td className="py-2 pr-4 text-muted">{fmt(s.drawdown_amount)}</td>
                     <td className="py-2 pr-4 text-muted">{fmt(s.daily_loss_limit)}</td>
+                    <td className="py-2 pr-4 text-muted">{fmt(s.optional_daily_loss_limit)}</td>
                     <td className="py-2 pr-4 text-muted">{s.max_contracts}</td>
                     <td className="py-2 pr-4 text-muted">{Number(s.consistency_rule_pct)}%</td>
                     <td className="py-2 pr-4 text-muted">{s.min_qualifying_days}</td>
@@ -119,6 +121,10 @@ export default async function AdminVersionSizesPage({
             <div>
               <label className="label">Daily Loss Limit ($, blank = none)</label>
               <input type="number" step="0.01" name="daily_loss_limit" className="input" placeholder="1000" />
+            </div>
+            <div>
+              <label className="label">Optional DLL Opt-In ($, blank = firm offers no opt-in)</label>
+              <input type="number" step="0.01" name="optional_daily_loss_limit" className="input" placeholder="1200" />
             </div>
             <div>
               <label className="label">Safety Net Buffer ($)</label>
