@@ -11,16 +11,27 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('display_name, plan')
+    .select('display_name, plan, role')
     .eq('id', user.id)
     .single()
+
+  const isAdmin = !!profile?.role && profile.role !== 'user'
 
   return (
     <div className="min-h-screen">
       <header className="bg-bg2 border-b border-border px-6 py-3 flex items-center justify-between sticky top-0 z-10">
-        <Link href="/dashboard" className="font-display text-xl tracking-[3px] text-green">
-          PROPCOACH
-        </Link>
+        <div className="flex items-center gap-5">
+          <Link href="/dashboard" className="font-display text-xl tracking-[3px] text-green">
+            PROPCOACH
+          </Link>
+          <nav className="flex items-center gap-3 sm:gap-4 text-xs text-muted">
+            <Link href="/dashboard" className="hover:text-green transition-colors">Accounts</Link>
+            <Link href="/settings" className="hover:text-green transition-colors">Settings</Link>
+            {isAdmin && (
+              <Link href="/admin" className="hover:text-amber transition-colors">Admin</Link>
+            )}
+          </nav>
+        </div>
         <div className="flex items-center gap-4">
           {profile?.plan === 'free' && (
             <Link
