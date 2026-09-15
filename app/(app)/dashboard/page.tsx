@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { getFirmConfigForAccount, derive, getAllFirms } from '@/lib/firms'
 import type { Account, Entry, FirmMeta } from '@/lib/firms/types'
+import RulesEditor from '@/components/RulesEditor'
 
 function fmt(n: number) {
   return (n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString()
@@ -102,7 +103,7 @@ export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const { data: profile }  = await supabase.from('profiles').select('plan').eq('id', user!.id).single()
+  const { data: profile }  = await supabase.from('profiles').select('plan, trading_rules').eq('id', user!.id).single()
   const { data: accounts } = await supabase
     .from('accounts')
     .select('*')
@@ -118,6 +119,15 @@ export default async function DashboardPage() {
 
   return (
     <div>
+      <RulesEditor
+        title="📌 My Rules"
+        table="profiles"
+        rowId={user!.id}
+        initialValue={profile?.trading_rules ?? null}
+        placeholder={'e.g. No trading the first 15 minutes\nMax 2 trades a day\nWalk away after a big win'}
+        emptyHint="No rules set yet — add reminders you want to see every time you check your accounts."
+      />
+
       {/* Page header */}
       <div className="flex items-center justify-between mb-6">
         <div>
