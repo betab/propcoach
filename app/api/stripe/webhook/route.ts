@@ -1,7 +1,7 @@
 // app/api/stripe/webhook/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-04-10' })
 
@@ -16,7 +16,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
   }
 
-  const supabase = await createClient()
+  // A webhook call from Stripe carries no user session/cookies at all, so
+  // the normal cookie-bound client (@/lib/supabase/server) runs every query
+  // here as an unauthenticated request — RLS's "auth.uid() = id" row-owner
+  // policy on profiles then matches zero rows, and every .update() below
+  // silently succeeds with 0 rows changed. That's a real, previously-shipped
+  // bug (flagged but deliberately deferred in
+  // supabase/migrations/004_lock_down_profile_columns.sql's own comment):
+  // plan/stripe_subscription_id never actually got written by checkout
+  // completing or a subscription being cancelled/updated. Needs the
+  // service-role client, which bypasses RLS entirely, same as the other
+  // privileged server-to-server writes in this codebase (role management,
+  // the rule-monitoring ingest route).
+  const supabase = createAdminClient()
 
   switch (event.type) {
     case 'checkout.session.completed': {
