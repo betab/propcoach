@@ -172,9 +172,9 @@ export async function getActiveFirms(supabase: SupabaseClient): Promise<FirmMeta
 export async function getFirmVersions(supabase: SupabaseClient, firmId: string): Promise<FirmVersion[]> {
   const { data } = await supabase
     .from('firm_rule_versions')
-    .select('version_key, version_label')
+    .select('version_key, version_label, version_group')
     .eq('firm_id', firmId)
-  return (data || []).map(v => ({ key: v.version_key, label: v.version_label }))
+  return (data || []).map(v => ({ key: v.version_key, label: v.version_label, group: v.version_group ?? null }))
 }
 
 /** Sizes currently offered (effective_to IS NULL — still open-ended) for a firm/version. */

@@ -136,6 +136,11 @@ export default async function AdminFirmDetailPage({ params }: { params: Promise<
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <div className="font-display text-lg text-white">{version.version_label}</div>
+                {version.version_group && (
+                  <span className="text-[9px] px-1.5 py-0.5 rounded border border-blue/40 text-blue normal-case">
+                    group: {version.version_group}
+                  </span>
+                )}
                 {!version.is_current && (
                   <span className="text-[9px] px-1.5 py-0.5 rounded border border-dim text-dim normal-case">
                     not offered to new accounts
@@ -214,6 +219,10 @@ export default async function AdminFirmDetailPage({ params }: { params: Promise<
               <label className="label">Version Label</label>
               <input type="text" name="version_label" className="input" placeholder="e.g. Legacy (pre-March 2026)" required />
             </div>
+          </div>
+          <div>
+            <label className="label">Plan Group (optional — versions sharing a group render as one family with a variant picker in Add Account, e.g. &quot;Select&quot; for Tradeify's Daily/Flex versions)</label>
+            <input type="text" name="version_group" className="input" placeholder="e.g. Select" />
           </div>
           <label className="flex items-center gap-2 text-xs text-muted">
             <input type="checkbox" name="is_current" defaultChecked className="accent-green" />

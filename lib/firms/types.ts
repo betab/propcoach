@@ -111,6 +111,7 @@ export interface CoachingRule {
 export interface FirmVersion {
   key:   string   // '4.0', 'legacy', 'standard'
   label: string   // '4.0 (March 2026+)'
+  group: string | null  // e.g. Tradeify Select's Daily/Flex variants both group: 'Select' — the new-account picker renders same-group versions as one family with a secondary variant selector, instead of N flat equal-weight entries. null = no grouping (every firm/version until this is set)
 }
 
 // ── Firm metadata for the registry ───────────────────────────────────────────
