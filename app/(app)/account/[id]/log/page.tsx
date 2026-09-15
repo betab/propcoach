@@ -29,8 +29,18 @@ export default function LogSessionPage() {
 
   useEffect(() => {
     async function load() {
+      // Wait on the session before firing any RLS-scoped query — see
+      // settings/page.tsx for the full explanation: a query that races the
+      // browser client's session hydration from cookies leaves auth.uid()
+      // unresolved, and RLS filters it to zero rows instead of the caller's
+      // own account. Filtering explicitly by user_id too (not just id) is
+      // the same belt-and-suspenders the server routes already use (e.g.
+      // api/accounts/[id]/payout/route.ts), not just relying on RLS alone.
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
       const { data: acc } = await supabase
-        .from('accounts').select('*').eq('id', accountId).single()
+        .from('accounts').select('*').eq('id', accountId).eq('user_id', user.id).single()
       const { data: ent } = await supabase
         .from('entries').select('*').eq('account_id', accountId).order('date', { ascending: true })
       setAccount(acc as Account)
