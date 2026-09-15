@@ -163,6 +163,7 @@ export default async function AdminFirmDetailPage({ params }: { params: Promise<
                       <th className="pb-2 pr-4">Max Contracts</th>
                       <th className="pb-2 pr-4">Consistency</th>
                       <th className="pb-2 pr-4">Min Qual. Days</th>
+                      <th className="pb-2 pr-4">Payout Gap</th>
                       <th className="pb-2 pr-4">Effective</th>
                     </tr>
                   </thead>
@@ -178,6 +179,7 @@ export default async function AdminFirmDetailPage({ params }: { params: Promise<
                         <td className="py-2 pr-4 text-muted">{s.max_contracts}</td>
                         <td className="py-2 pr-4 text-muted">{s.consistency_schedule?.length ? s.consistency_schedule.map((n: number) => Number(n)).join('→') + '%' : `${Number(s.consistency_rule_pct)}%`}</td>
                         <td className="py-2 pr-4 text-muted">{s.min_qualifying_days}</td>
+                        <td className="py-2 pr-4 text-muted">{s.min_days_between_payouts > 0 ? `${s.min_days_between_payouts}d` : 'Any day'}</td>
                         <td className="py-2 pr-4 text-dim whitespace-nowrap">
                           {s.effective_from}{s.effective_to ? ` → ${s.effective_to}` : ' →'}
                         </td>
