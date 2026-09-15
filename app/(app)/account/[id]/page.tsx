@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { getFirmConfigForAccount, derive, buildCoaching } from '@/lib/firms'
 import type { Entry, AccountConfig, DerivedMetrics, CoachingRule } from '@/lib/firms/types'
+import RulesEditor from '@/components/RulesEditor'
+import TradingCalendar from '@/components/TradingCalendar'
 
 function fmt(n: number)  { return (n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString() }
 function fmtS(n: number) { return (n > 0 ? '+$' : n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString() }
@@ -23,7 +25,7 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
 
   if (!account) notFound()
 
-  const [{ data: rawEntries }, { data: lastPayout }] = await Promise.all([
+  const [{ data: rawEntries }, { data: lastPayout }, { data: profile }] = await Promise.all([
     supabase
       .from('entries')
       .select('*')
@@ -36,6 +38,11 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
       .order('recorded_at', { ascending: false })
       .limit(1)
       .maybeSingle(),
+    supabase
+      .from('profiles')
+      .select('trading_rules')
+      .eq('id', user.id)
+      .single(),
   ])
 
   const entries = (rawEntries || []) as Entry[]
@@ -122,6 +129,28 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
             </form>
           )}
         </div>
+      </div>
+
+      {/* My Rules — global reminders (also editable from the dashboard) plus
+          an optional list specific to this account/firm. Shown regardless
+          of configError — these don't depend on resolving firm rules. */}
+      <div className="grid sm:grid-cols-2 gap-3 mb-3">
+        <RulesEditor
+          title="📌 My Rules"
+          table="profiles"
+          rowId={user.id}
+          initialValue={profile?.trading_rules ?? null}
+          placeholder={'e.g. No trading the first 15 minutes\nMax 2 trades a day\nWalk away after a big win'}
+          emptyHint="No rules set yet — add reminders you want to see every time you check an account."
+        />
+        <RulesEditor
+          title={`📌 ${account.nickname || `${(account.size / 1000).toFixed(0)}K`} Rules`}
+          table="accounts"
+          rowId={account.id}
+          initialValue={account.rules ?? null}
+          placeholder={'e.g. This firm resets consistency after payout\nStay under 25% on any one day'}
+          emptyHint="No rules specific to this account yet — optional, for anything unique to this firm/plan."
+        />
       </div>
 
       {configError ? (
@@ -266,6 +295,15 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
         )}
       </div>
       </>
+      )}
+
+      {/* Trading Calendar — pure display over entries, independent of
+          whether firm config resolved, so it still renders even when
+          configError is set above. */}
+      {entries.length > 0 && (
+        <div className="mt-3">
+          <TradingCalendar entries={entries} />
+        </div>
       )}
     </div>
   )
