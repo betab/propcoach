@@ -2,6 +2,7 @@
 // app/(app)/settings/page.tsx
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import AvatarUpload from '@/components/AvatarUpload'
 
@@ -13,6 +14,7 @@ export default function SettingsPage() {
   const [saved,       setSaved]       = useState(false)
   const [error,       setError]       = useState('')
   const supabase = createClient()
+  const router   = useRouter()
 
   useEffect(() => {
     // Sequenced, not parallel: firing the profiles query at the same time
@@ -53,8 +55,17 @@ export default function SettingsPage() {
       .update({ display_name: displayName.trim() || null })
       .eq('id', profile.id)
 
-    if (updateError) setError(updateError.message)
-    else setSaved(true)
+    if (updateError) {
+      setError(updateError.message)
+    } else {
+      setSaved(true)
+      // The header (app/(app)/layout.tsx) is a server component that reads
+      // display_name once per navigation — a client-side update here has
+      // no way to reach it on its own. router.refresh() re-runs the server
+      // components for the current route (no full reload, state here is
+      // preserved), same pattern SignOutButton already uses.
+      router.refresh()
+    }
     setSaving(false)
   }
 
@@ -72,7 +83,10 @@ export default function SettingsPage() {
               userId={profile.id}
               currentUrl={profile.avatar_url}
               displayName={displayName || email}
-              onUploaded={url => setProfile((p: any) => ({ ...p, avatar_url: url }))}
+              onUploaded={url => {
+                setProfile((p: any) => ({ ...p, avatar_url: url }))
+                router.refresh() // same reason as handleSave — refresh the header's server-fetched avatar
+              }}
             />
           </div>
         )}
