@@ -15,15 +15,30 @@ export default function SettingsPage() {
   const supabase = createClient()
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email || ''))
-    supabase.from('profiles').select('*').single().then(({ data }) => {
-      setProfile(data)
-      setDisplayName(data?.display_name || '')
+    // Sequenced, not parallel: firing the profiles query at the same time
+    // as getUser() let it race the browser client's session hydration from
+    // cookies — a query that leaves auth.uid() unresolved server-side gets
+    // RLS-filtered to zero rows, and .single() turns "zero rows" into a
+    // 406 rather than an empty result. getUser() does a real round-trip
+    // that forces the session to be valid before we ever ask for the
+    // profile, and filtering explicitly by id (rather than relying solely
+    // on RLS with no filter at all) means a real "no profile" case fails
+    // clearly instead of however PostgREST happens to react to an
+    // unscoped query.
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      setEmail(user.email || '')
+      supabase.from('profiles').select('*').eq('id', user.id).single().then(({ data, error: fetchError }) => {
+        if (fetchError) { setError(fetchError.message); return }
+        setProfile(data)
+        setDisplayName(data?.display_name || '')
+      })
     })
   }, [])
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
+    if (!profile) return
     setSaving(true)
     setError('')
     setSaved(false)
@@ -88,8 +103,8 @@ export default function SettingsPage() {
           <div className="flex items-center gap-3">
             <button
               type="submit"
-              disabled={saving}
-              className="text-[10px] tracking-widest uppercase border border-green text-green px-4 py-2 rounded hover:bg-green/10 transition-colors font-mono"
+              disabled={saving || !profile}
+              className="text-[10px] tracking-widest uppercase border border-green text-green px-4 py-2 rounded hover:bg-green/10 transition-colors font-mono disabled:opacity-50"
             >
               {saving ? 'Saving…' : 'Save'}
             </button>

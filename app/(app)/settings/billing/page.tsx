@@ -14,7 +14,14 @@ export default function BillingPage() {
   const justUpgraded = searchParams.get('success') === 'true'
 
   useEffect(() => {
-    supabase.from('profiles').select('*').single().then(({ data }) => setProfile(data))
+    // See settings/page.tsx for why this waits on getUser() first and
+    // filters explicitly by id instead of relying solely on RLS with no
+    // filter — firing an RLS-scoped query in parallel with getUser() can
+    // race the browser client's session hydration and come back 406.
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      supabase.from('profiles').select('*').eq('id', user.id).single().then(({ data }) => setProfile(data))
+    })
   }, [])
 
   async function handleUpgrade(interval: 'monthly' | 'annual') {
