@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import SignOutButton from '@/components/SignOutButton'
+import Avatar from '@/components/Avatar'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -11,7 +12,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('display_name, plan, role')
+    .select('display_name, plan, role, avatar_url')
     .eq('id', user.id)
     .single()
 
@@ -26,7 +27,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </Link>
           <nav className="flex items-center gap-3 sm:gap-4 text-xs text-muted">
             <Link href="/dashboard" className="hover:text-green transition-colors">Accounts</Link>
-            <Link href="/settings" className="hover:text-green transition-colors">Settings</Link>
             {isAdmin && (
               <Link href="/admin" className="hover:text-amber transition-colors">Admin</Link>
             )}
@@ -41,9 +41,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               Upgrade to Pro
             </Link>
           )}
-          <span className="text-xs text-muted hidden sm:block">
-            {profile?.display_name || user.email}
-          </span>
+          {/* Username (+ avatar) is the entry point into Settings — no
+              separate "Settings" nav item needed. */}
+          <Link
+            href="/settings"
+            className="flex items-center gap-2 text-xs text-muted hover:text-white transition-colors"
+          >
+            <Avatar url={profile?.avatar_url} name={profile?.display_name || user.email} size={26} />
+            <span className="hidden sm:block">{profile?.display_name || user.email}</span>
+          </Link>
           <SignOutButton />
         </div>
       </header>

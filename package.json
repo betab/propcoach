@@ -17,6 +17,7 @@
     "next": "^16.1.6",
     "react": "^18",
     "react-dom": "^18",
+    "react-easy-crop": "^6.2.3",
     "stripe": "^15.0.0",
     "tailwind-merge": "^2.3.0"
   },
