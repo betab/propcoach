@@ -6,6 +6,7 @@
 // requireCanEditRules on the routes is the real gate for admin_readonly,
 // which gets a 403 rather than a hidden button.
 import { createClient } from '@/lib/supabase/server'
+import { NEW_DATA_SENTINEL_EFFECTIVE_FROM } from '@/lib/admin-proposals'
 
 const TYPE_LABEL: Record<string, string> = {
   update_existing: 'Update existing rule',
@@ -136,7 +137,15 @@ export default async function AdminProposalsPage() {
                     <input
                       type="date"
                       name="effective_from"
-                      defaultValue={p.proposed_effective_from || today}
+                      // new_size/new_version/new_firm are baseline data — "here's
+                      // this plan's current numbers" — not a point-in-time rule
+                      // change, so they default to the same early-sentinel
+                      // convention 003_firm_rules_db.sql's seed data already uses
+                      // for Apex/TopStep. Backdating here, not in applyProposal
+                      // itself, so an admin who genuinely knows a specific size
+                      // only started existing on a real date can still type that
+                      // in — this is a default, not an override.
+                      defaultValue={p.proposed_effective_from || (p.proposal_type === 'update_existing' ? today : NEW_DATA_SENTINEL_EFFECTIVE_FROM)}
                       className="input"
                       style={{ padding: '4px 8px', width: 'auto' }}
                       required

@@ -26,6 +26,19 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 
+// Baseline/onboarding data (new_size, new_version, new_firm — "here's this
+// plan's current numbers") defaults to this sentinel instead of the
+// approval date, matching the convention 003_firm_rules_db.sql's own seed
+// INSERTs already use for Apex/TopStep: "these are the current rules,
+// treat them as having been true all along" rather than "these rules
+// started being true today." Without this, any trader whose real account
+// start_date predates the day an admin happened to enter a firm's data
+// gets an account with nothing to resolve against — the exact bug this
+// constant was added to close off for good, not just patch once.
+// update_existing keeps using the real approval/admin-chosen date — that
+// path represents an actual point-in-time rule change, not baseline data.
+export const NEW_DATA_SENTINEL_EFFECTIVE_FROM = '2020-01-01'
+
 export const SIZE_EDITABLE_COLUMNS = [
   'drawdown_amount', 'daily_loss_limit', 'optional_daily_loss_limit', 'scale_dll_pct', 'safety_net_buffer', 'mll_lock_buffer',
   'qualifying_day_min', 'min_qualifying_days', 'max_contracts', 'consistency_rule_pct', 'consistency_schedule',
@@ -109,6 +122,32 @@ function normalizeSizeInput(data: Record<string, any>, effectiveFrom: string) {
   }
 }
 
+// Refuses a would-be duplicate the same way POST /api/admin/firm-rule-sizes
+// already does for direct admin entry — a second open-ended row for the
+// same (version, size, drawdown_type) key makes effective-date resolution
+// ambiguous (resolveFirmRuleSize's "most recent effective_from wins"
+// tiebreak just silently picks one, masking the duplicate instead of
+// erroring). applyProposal's new_size case never had this guard, which is
+// exactly how Lucid/Tradeify Lightning ended up with real production
+// duplicates — a correction proposal that should have been update_existing
+// got submitted as new_size instead and nothing caught it.
+async function hasOpenRow(
+  supabase: SupabaseClient,
+  firmVersionId: string,
+  accountSize: number,
+  drawdownType: string
+): Promise<boolean> {
+  const { data } = await supabase
+    .from('firm_rule_sizes')
+    .select('id')
+    .eq('firm_version_id', firmVersionId)
+    .eq('account_size', accountSize)
+    .eq('drawdown_type', drawdownType)
+    .is('effective_to', null)
+    .maybeSingle()
+  return !!data
+}
+
 export interface ProposalRow {
   id: string
   firm_id: string
@@ -176,6 +215,13 @@ export async function applyProposal(
       const row = normalizeSizeInput(data, effectiveFrom)
       if (!row.account_size || !row.drawdown_type) return { error: 'proposed_data must include account_size and drawdown_type.' }
 
+      if (await hasOpenRow(supabase, version.id, row.account_size, row.drawdown_type)) {
+        return {
+          error: `A current row already exists for $${row.account_size} ${row.drawdown_type} on this version — ` +
+            `this should be an "update existing" proposal, not "new size". Reject this one and correct the existing row instead.`,
+        }
+      }
+
       const { error } = await supabase.from('firm_rule_sizes').insert({ firm_version_id: version.id, ...row, created_by: userId })
       return error ? { error: error.message } : {}
     }
@@ -197,6 +243,15 @@ export async function applyProposal(
 
       for (const s of Array.isArray(data.sizes) ? data.sizes : []) {
         const row = normalizeSizeInput(s, effectiveFrom)
+        if (!row.account_size || !row.drawdown_type) {
+          return { error: 'Version created, but one of proposed_data.sizes is missing account_size or drawdown_type.' }
+        }
+        // Defense in depth: newVersion.id was just created above, so this
+        // can only trip on a malformed payload listing the same size twice
+        // — but it's the same cheap check as new_size, so no reason to skip it.
+        if (await hasOpenRow(supabase, newVersion.id, row.account_size, row.drawdown_type)) {
+          return { error: `Version created, but proposed_data.sizes lists $${row.account_size} ${row.drawdown_type} more than once.` }
+        }
         const { error } = await supabase.from('firm_rule_sizes').insert({ firm_version_id: newVersion.id, ...row, created_by: userId })
         if (error) return { error: `Version created, but a size row failed: ${error.message}` }
       }
@@ -232,6 +287,12 @@ export async function applyProposal(
 
         for (const s of Array.isArray(v.sizes) ? v.sizes : []) {
           const row = normalizeSizeInput(s, effectiveFrom)
+          if (!row.account_size || !row.drawdown_type) {
+            return { error: 'Firm/version created, but one of a version\'s sizes is missing account_size or drawdown_type.' }
+          }
+          if (await hasOpenRow(supabase, newVersion.id, row.account_size, row.drawdown_type)) {
+            return { error: `Firm/version created, but a version's sizes list $${row.account_size} ${row.drawdown_type} more than once.` }
+          }
           const { error } = await supabase.from('firm_rule_sizes').insert({ firm_version_id: newVersion.id, ...row, created_by: userId })
           if (error) return { error: `Firm/version created, but a size row failed: ${error.message}` }
         }

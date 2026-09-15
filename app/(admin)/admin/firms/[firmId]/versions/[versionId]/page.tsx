@@ -2,6 +2,7 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { NEW_DATA_SENTINEL_EFFECTIVE_FROM } from '@/lib/admin-proposals'
 
 function fmt(n: number | string | null): string {
   if (n == null) return '—'
@@ -167,8 +168,8 @@ export default async function AdminVersionSizesPage({
               <input type="number" name="min_days_between_payouts" className="input" defaultValue={0} />
             </div>
             <div>
-              <label className="label">Effective From</label>
-              <input type="date" name="effective_from" className="input" defaultValue={new Date().toISOString().slice(0, 10)} required />
+              <label className="label">Effective From (baseline data — defaults far in the past so any real account start date resolves; only change this if the size genuinely didn't exist before a specific date)</label>
+              <input type="date" name="effective_from" className="input" defaultValue={NEW_DATA_SENTINEL_EFFECTIVE_FROM} required />
             </div>
           </div>
           <div>
