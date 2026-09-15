@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import AvatarUpload from '@/components/AvatarUpload'
 
 export default function SettingsPage() {
   const [email,       setEmail]       = useState('')
@@ -49,6 +50,18 @@ export default function SettingsPage() {
       {/* Profile */}
       <div className="card mb-4">
         <div className="stat-label mb-3">Profile</div>
+
+        {profile && (
+          <div className="mb-5">
+            <AvatarUpload
+              userId={profile.id}
+              currentUrl={profile.avatar_url}
+              displayName={displayName || email}
+              onUploaded={url => setProfile((p: any) => ({ ...p, avatar_url: url }))}
+            />
+          </div>
+        )}
+
         <form onSubmit={handleSave} className="space-y-3">
           <div>
             <label className="label">Display Name</label>
