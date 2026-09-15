@@ -1,7 +1,7 @@
 // app/api/accounts/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { getCurrentFirmConfig } from '@/lib/firms'
+import { getFirmConfigForAccount } from '@/lib/firms'
 import type { DrawdownType } from '@/lib/firms/types'
 
 export async function POST(req: NextRequest) {
@@ -18,18 +18,28 @@ export async function POST(req: NextRequest) {
   }
 
   // Confirm this firm/size/drawdown-type/version combination actually has
-  // resolvable rules before ever creating the row — without this, a client
-  // could POST an arbitrary combination that has no matching firm_rule_sizes
-  // row and get an account that 404s the moment its detail page is viewed
-  // (the same class of bug fixed in #5's data-driven pickers, closed off
-  // here for any caller that bypasses the UI, e.g. a retry or a future
-  // non-browser client).
+  // resolvable rules AS OF THIS ACCOUNT'S OWN START DATE before ever
+  // creating the row — not "as of today". The account detail page always
+  // resolves config as of account.start_date (rules are effective-dated,
+  // an account's math can legitimately differ from "what's true today"),
+  // so validating against today here was a real gap: it let creation
+  // succeed for a start_date earlier than when this firm/plan's numbers
+  // were entered, only for the account to have nothing to resolve the
+  // moment its detail page loaded — a hard crash there before this was
+  // fixed (that page didn't handle the failure either; see
+  // app/(app)/account/[id]/page.tsx). Calling getFirmConfigForAccount here
+  // with the exact same shape of object account detail resolves later
+  // guarantees this check can never drift from what actually happens at
+  // display time — no second date-resolution path to keep in sync.
   let config
   try {
-    config = await getCurrentFirmConfig(supabase, firm_id, size, drawdown_type as DrawdownType, version, dllEnabled)
+    config = await getFirmConfigForAccount(supabase, {
+      firm_id, size, drawdown_type: drawdown_type as DrawdownType, version, start_date,
+      daily_loss_limit_enabled: dllEnabled,
+    })
   } catch {
     return NextResponse.json(
-      { error: 'No rules found for that firm, size, drawdown type, and version combination.' },
+      { error: `No rules found for that firm, size, drawdown type, and version combination as of ${start_date}. Try a later start date, or contact support if this firm's rules were genuinely in effect that far back.` },
       { status: 400 }
     )
   }
