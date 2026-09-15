@@ -92,7 +92,7 @@ export interface DerivedMetrics {
   daysSinceLastPayout: number | null  // null = no prior payout recorded (the gate never applies to a first payout)
   payoutFrequencyOk: boolean         // false only when minDaysBetweenPayouts hasn't elapsed since the last payout
   payoutEligible:   boolean
-  nextPayoutMax:    number
+  nextPayoutMax:    number | null   // null = payoutLadder isn't configured for this firm/size yet, not "$0 max" — see derive.ts
   mllLockProgress:  number          // 0–100 toward locking MLL
   winDays:          number
   lossDays:         number
