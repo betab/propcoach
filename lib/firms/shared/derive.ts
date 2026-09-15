@@ -91,9 +91,15 @@ export function derive(
     || daysSinceLastPayout >= config.minDaysBetweenPayouts
 
   const payoutEligible = aboveSN >= config.minPayout && consOk && qualDays >= config.minQualifyingDays && payoutFrequencyOk
-  const nextPayoutMax  = config.payoutLadder[
-    Math.min(payoutCount, config.payoutLadder.length - 1)
-  ]
+  // An empty payoutLadder is a real gap (a firm/size onboarded without its
+  // payout amounts entered yet — see supabase data for Lucid, e.g.) rather
+  // than a firm that genuinely caps payouts at $0. Indexing into [] gives
+  // undefined, which fmt()'s Math.round() turns into a silent "$NaN" on
+  // screen — null is explicit and lets the UI say "not configured" instead
+  // of showing a number that looks like a real (and wrong) answer.
+  const nextPayoutMax = config.payoutLadder.length > 0
+    ? config.payoutLadder[Math.min(payoutCount, config.payoutLadder.length - 1)]
+    : null
 
   const progress = clamp(
     ((bal - config.accountSize) / (config.safetyNet - config.accountSize)) * 100,

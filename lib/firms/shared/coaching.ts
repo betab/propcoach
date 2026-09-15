@@ -108,8 +108,10 @@ export function buildCoaching(
   if (m.payoutEligible) {
     rules.push({
       label:    `Payout #${payoutCount + 1} — READY`,
-      value:    `Up to ${fmt(m.nextPayoutMax)}`,
-      note:     `Balance above Safety Net, consistency clear. You can request now. Record the payout in the app so your cycle resets correctly.`,
+      value:    m.nextPayoutMax != null ? `Up to ${fmt(m.nextPayoutMax)}` : 'Amount not set',
+      note:     m.nextPayoutMax != null
+        ? `Balance above Safety Net, consistency clear. You can request now. Record the payout in the app so your cycle resets correctly.`
+        : `Balance above Safety Net, consistency clear — but this plan's payout ladder hasn't been entered yet, so we can't show a max amount. Check with the firm directly for now.`,
       severity: 'ok',
     })
   } else if (m.aboveSafetyNet >= config.minPayout && m.consistencyOk && m.qualifyingDays < config.minQualifyingDays) {
