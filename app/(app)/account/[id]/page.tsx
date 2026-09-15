@@ -3,7 +3,7 @@ import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { getFirmConfigForAccount, derive, buildCoaching } from '@/lib/firms'
-import type { Entry } from '@/lib/firms/types'
+import type { Entry, AccountConfig, DerivedMetrics, CoachingRule } from '@/lib/firms/types'
 
 function fmt(n: number)  { return (n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString() }
 function fmtS(n: number) { return (n > 0 ? '+$' : n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString() }
@@ -40,11 +40,29 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
 
   const entries = (rawEntries || []) as Entry[]
 
-  const config = await getFirmConfigForAccount(supabase, account)
-  const m      = derive(config, entries, account.payout_count, lastPayout?.recorded_at ?? null)
-  const coach  = buildCoaching(config, m, entries, account.payout_count)
+  // getFirmConfigForAccount resolves the firm's rules as of THIS account's
+  // start_date — a real "no rules found" case (start_date earlier than
+  // when this firm/plan's numbers were entered) throws. Unlike
+  // dashboard/page.tsx's AccountCard, this was never wrapped, so that
+  // throw crashed the entire page with a hard 500 instead of degrading to
+  // an explanation — same bug class, just missing here. POST /api/accounts
+  // has its own fix for the root cause (validating against the account's
+  // real start_date instead of "today" before ever creating the row); this
+  // is the last-resort catch for every other way this can still happen
+  // (a manually inserted row, a firm's rule history edited after the fact).
+  let config: AccountConfig | null = null
+  let m: DerivedMetrics | null = null
+  let coach: CoachingRule[] = []
+  let configError: string | null = null
+  try {
+    config = await getFirmConfigForAccount(supabase, account)
+    m      = derive(config, entries, account.payout_count, lastPayout?.recorded_at ?? null)
+    coach  = buildCoaching(config, m, entries, account.payout_count)
+  } catch (err) {
+    configError = err instanceof Error ? err.message : 'Unknown error resolving this account\'s rules.'
+  }
 
-  const bufColor = m.buffer < 500 ? '#ff4444' : m.buffer < 1200 ? '#ffaa00' : '#00ff88'
+  const bufColor = m ? (m.buffer < 500 ? '#ff4444' : m.buffer < 1200 ? '#ffaa00' : '#00ff88') : '#5a7a90'
 
   return (
     <div>
@@ -106,6 +124,23 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
         </div>
       </div>
 
+      {configError ? (
+        <div className="card border-danger/30 bg-danger/5">
+          <div className="stat-label mb-2 text-danger">⚠ Rules Not Available For This Start Date</div>
+          <p className="text-sm text-muted mb-3">
+            We couldn't resolve {account.firm_id}&apos;s rules for this account as of its start date
+            ({account.start_date}). This usually means the start date is earlier than when this firm/plan's
+            numbers were entered into PropCoach — the account itself is fine, it just has nothing to compute
+            metrics against yet.
+          </p>
+          <p className="text-xs text-dim mb-3">{configError}</p>
+          <p className="text-xs text-muted">
+            Reach out and we'll either backdate the rule history (if it was genuinely in effect that far
+            back) or help you recreate this account with a later start date.
+          </p>
+        </div>
+      ) : config && m && (
+      <>
       {/* Primary stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
         {[
@@ -230,6 +265,8 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
           </div>
         )}
       </div>
+      </>
+      )}
     </div>
   )
 }
