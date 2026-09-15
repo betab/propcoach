@@ -1,10 +1,50 @@
 'use client'
 // app/(app)/dashboard/new-account/page.tsx
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { getAllFirms, getFirmVersions, getAvailableSizes, getCurrentFirmConfig } from '@/lib/firms'
 import type { FirmMeta, FirmVersion, DrawdownType } from '@/lib/firms/types'
+
+// Versions sharing a version_group (e.g. Tradeify Select's select_daily/
+// select_flex, both group: 'Select') render as one "family" — like Growth
+// and Lightning, which have no group and so are each their own
+// single-variant family. A firm with no grouping at all behaves exactly as
+// before: one family per version, in DB order.
+interface VersionFamily {
+  key:      string          // the group name, or the lone version's key
+  label:    string          // the group name, or the lone version's label
+  variants: FirmVersion[]
+}
+
+function buildFamilies(versions: FirmVersion[]): VersionFamily[] {
+  const families: VersionFamily[] = []
+  const indexByGroup = new Map<string, number>()
+  for (const v of versions) {
+    if (v.group) {
+      const idx = indexByGroup.get(v.group)
+      if (idx == null) {
+        indexByGroup.set(v.group, families.length)
+        families.push({ key: v.group, label: v.group, variants: [v] })
+      } else {
+        families[idx].variants.push(v)
+      }
+    } else {
+      families.push({ key: v.key, label: v.label, variants: [v] })
+    }
+  }
+  return families
+}
+
+// "Select — Daily Payouts (Funded)" + group "Select" -> "Daily Payouts (Funded)".
+// Falls back to the full label if it doesn't start with "{group}" + a
+// separator — never hides information, just trims the redundant prefix
+// when there's a clean one to trim.
+function stripGroupPrefix(label: string, group: string): string {
+  const escaped = group.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const m = label.match(new RegExp(`^${escaped}\\s*[-–—:]\\s*`))
+  return m ? label.slice(m[0].length) : label
+}
 
 export default function NewAccountPage() {
   const router = useRouter()
@@ -76,6 +116,9 @@ export default function NewAccountPage() {
   useEffect(() => {
     if (optionalDll == null) setDllEnabled(false)
   }, [optionalDll])
+
+  const families = useMemo(() => buildFamilies(versions), [versions])
+  const selectedFamily = families.find(f => f.variants.some(v => v.key === version))
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -220,24 +263,54 @@ export default function NewAccountPage() {
             </div>
           )}
 
-          {/* Version — only shown when this firm has more than one */}
-          {versions.length > 1 && (
+          {/* Plan — only shown when this firm has more than one family. Versions
+              sharing a version_group (e.g. Tradeify's Select) collapse into one
+              card here; picking a multi-variant family reveals the Payout
+              Schedule selector below instead of listing every variant flat. */}
+          {families.length > 1 && (
             <div>
-              <label className="label">Account Version</label>
+              <label className="label">Plan</label>
               <div className="grid grid-cols-2 gap-2">
-                {versions.map(opt => (
+                {families.map(family => (
                   <button
-                    key={opt.key}
+                    key={family.key}
                     type="button"
-                    onClick={() => setVersion(opt.key)}
+                    onClick={() => setVersion(family.variants[0].key)}
                     className={`p-3 rounded border text-left transition-all ${
-                      version === opt.key
+                      selectedFamily?.key === family.key
                         ? 'border-green bg-green/5'
                         : 'border-border hover:border-blue/40'
                     }`}
                   >
-                    <div className={`text-xs font-semibold ${version === opt.key ? 'text-green' : 'text-muted'}`}>
-                      {opt.label}
+                    <div className={`text-xs font-semibold ${selectedFamily?.key === family.key ? 'text-green' : 'text-muted'}`}>
+                      {family.label}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Variant — only shown for the family currently selected, and only
+              when it actually has more than one (e.g. Select's Daily vs Flex
+              payout cadence). A single-variant family never shows this. */}
+          {selectedFamily && selectedFamily.variants.length > 1 && (
+            <div>
+              <label className="label">Payout Schedule</label>
+              <div className="grid grid-cols-2 gap-2">
+                {selectedFamily.variants.map(v => (
+                  <button
+                    key={v.key}
+                    type="button"
+                    onClick={() => setVersion(v.key)}
+                    className={`p-3 rounded border text-left transition-all ${
+                      version === v.key
+                        ? 'border-green bg-green/5'
+                        : 'border-border hover:border-blue/40'
+                    }`}
+                  >
+                    <div className={`text-xs font-semibold ${version === v.key ? 'text-green' : 'text-muted'}`}>
+                      {stripGroupPrefix(v.label, selectedFamily.label)}
                     </div>
                   </button>
                 ))}
