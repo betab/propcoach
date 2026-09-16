@@ -103,7 +103,7 @@ export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const { data: profile }  = await supabase.from('profiles').select('plan, trading_rules').eq('id', user!.id).single()
+  const { data: profile }  = await supabase.from('profiles').select('plan, trading_rules, role').eq('id', user!.id).single()
   const { data: accounts } = await supabase
     .from('accounts')
     .select('*')
@@ -112,8 +112,13 @@ export default async function DashboardPage() {
     .order('created_at', { ascending: true })
 
   const isPro       = profile?.plan === 'pro'
+  // Same exemption as the DB trigger (check_account_limit(), migration 015)
+  // — admins don't need a Pro subscription to track more than one account.
+  // This only controls whether the UI shows "+ Add Account" or the upgrade
+  // prompt; the trigger is what actually enforces it either way.
+  const isAdmin     = !!profile?.role && profile.role !== 'user'
   const activeCount = accounts?.filter(a => a.status === 'active').length || 0
-  const canAdd      = isPro || activeCount < 1
+  const canAdd      = isPro || isAdmin || activeCount < 1
 
   const allFirms = await getAllFirms(supabase)
 
@@ -134,7 +139,8 @@ export default async function DashboardPage() {
           <h1 className="font-display text-3xl tracking-[3px] text-white">MY ACCOUNTS</h1>
           <p className="text-xs text-muted mt-1">
             {accounts?.length || 0} account{accounts?.length !== 1 ? 's' : ''}
-            {!isPro && ' · Free plan (1 account max)'}
+            {!isPro && !isAdmin && ' · Free plan (1 account max)'}
+            {!isPro && isAdmin && ' · Admin — unlimited accounts'}
           </p>
         </div>
         {canAdd ? (
