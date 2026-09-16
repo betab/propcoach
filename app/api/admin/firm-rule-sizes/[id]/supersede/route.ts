@@ -37,11 +37,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // not editable here — changing what a row represents is a new-size
   // operation, not an edit.
 
-  const { error: closeError } = await supabase
+  // .select() here isn't cosmetic: without it, a 0-row update (e.g. an RLS
+  // policy silently filtering it out) reports no error at all — that's
+  // exactly how this close-out went unnoticed for every supersession before
+  // 016_firm_rule_sizes_update_policy.sql added the missing UPDATE policy.
+  const { data: closedRows, error: closeError } = await supabase
     .from('firm_rule_sizes')
     .update({ effective_to: parsed.effectiveFrom })
     .eq('id', id)
+    .select('id')
   if (closeError) return NextResponse.json({ error: closeError.message }, { status: 400 })
+  if (!closedRows || closedRows.length === 0) {
+    return NextResponse.json({ error: 'Closing the current row affected 0 rows — check RLS UPDATE policy on firm_rule_sizes.' }, { status: 400 })
+  }
 
   const { error: insertError } = await supabase.from('firm_rule_sizes').insert({
     firm_version_id: oldRow.firm_version_id,

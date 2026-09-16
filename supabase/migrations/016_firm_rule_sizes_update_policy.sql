@@ -1,0 +1,40 @@
+-- 016_firm_rule_sizes_update_policy.sql
+-- ─────────────────────────────────────────────────────────────────────────────
+-- CRITICAL: firm_rule_sizes has had RLS enabled since 003_firm_rules_db.sql
+-- with policies for SELECT (public read) and INSERT (admin write) — but no
+-- UPDATE policy was ever added. Every "close out the old row" step of a
+-- supersession (an approved update_existing proposal, or a direct admin
+-- edit via /admin/firms/.../sizes/[sizeId]) sets firm_rule_sizes.effective_to
+-- via the session-scoped (RLS-enforced) Supabase client. With no UPDATE
+-- policy, Postgres RLS silently filters the UPDATE to zero matching rows —
+-- it does NOT raise an error — so the close-out has been a silent no-op for
+-- every supersession ever approved through the app. The new row still gets
+-- inserted correctly (INSERT has always had a policy), so the correction
+-- itself lands, but the row it was meant to replace is left open forever
+-- instead of closed at the new row's effective_from.
+--
+-- Confirmed live in production via:
+--   select policyname, cmd, qual, with_check from pg_policies
+--   where tablename = 'firm_rule_sizes';
+-- returned only "firm_rule_sizes public read" (SELECT) and
+-- "firm_rule_sizes admin write" (INSERT) — no UPDATE row at all.
+--
+-- This usually isn't a live correctness bug today: resolveFirmRuleSize()
+-- orders by effective_from DESC, so as long as the orphaned old row's
+-- effective_from is genuinely earlier than the new row's, resolution still
+-- picks the right one. It becomes a real bug only when two open rows for
+-- the same (version, size, drawdown_type) end up with the SAME
+-- effective_from — which is exactly what happened to Tradeify Growth's
+-- min_qualifying_days earlier: an update_existing approval's close-out
+-- silently no-op'ed, and a second approval landed a new row with a tied
+-- effective_from, so the tiebreak became arbitrary. See
+-- 017_close_orphaned_superseded_sizes.sql for the one-time data cleanup
+-- this enables, and lib/admin-proposals.ts / the supersede route for the
+-- accompanying code fix that now verifies the close-out actually affected
+-- a row instead of trusting a silent success.
+--
+-- Run this in: Supabase Dashboard → SQL Editor.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+CREATE POLICY "firm_rule_sizes admin update" ON firm_rule_sizes
+  FOR UPDATE USING (can_edit_rules()) WITH CHECK (can_edit_rules());
