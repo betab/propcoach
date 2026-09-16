@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { getFirmConfigForAccount, derive, getAllFirms } from '@/lib/firms'
 import type { Account, Entry, FirmMeta } from '@/lib/firms/types'
+import { formatDrawdownType } from '@/lib/format'
 import RulesEditor from '@/components/RulesEditor'
 
 function fmt(n: number) {
@@ -66,7 +67,7 @@ async function AccountCard({ account, firmMeta }: { account: Account; firmMeta: 
           </div>
           <div className="text-right">
             <div className="text-[10px] text-dim tracking-widest uppercase">
-              {account.drawdown_type === 'trailing_eod' ? 'EOD' : 'Intraday'} · {account.version}
+              {formatDrawdownType(account.drawdown_type)} · {account.version}
             </div>
             <div className="text-xs text-muted mt-1">
               {account.size.toLocaleString()} account

@@ -2,6 +2,7 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { formatDrawdownType } from '@/lib/format'
 
 export default async function EditFirmRuleSizePage({
   params,
@@ -43,10 +44,10 @@ export default async function EditFirmRuleSizePage({
           {version.version_label}
         </Link>
         <span className="mx-2">›</span>
-        <span>Edit ${(size.account_size / 1000).toFixed(0)}K {size.drawdown_type === 'trailing_eod' ? 'EOD' : 'Intraday'}</span>
+        <span>Edit ${(size.account_size / 1000).toFixed(0)}K {formatDrawdownType(size.drawdown_type)}</span>
       </div>
       <h1 className="font-display text-3xl tracking-[3px] text-white mb-2">
-        EDIT ${(size.account_size / 1000).toFixed(0)}K {size.drawdown_type === 'trailing_eod' ? 'EOD' : 'INTRADAY'}
+        EDIT ${(size.account_size / 1000).toFixed(0)}K {formatDrawdownType(size.drawdown_type).toUpperCase()}
       </h1>
       <p className="text-xs text-muted mb-6">
         This never overwrites history — saving closes the current row (effective {size.effective_from} →) at your
