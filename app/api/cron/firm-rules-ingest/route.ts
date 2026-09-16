@@ -45,6 +45,14 @@
 // computeSizeFieldDiffs in lib/admin-proposals.ts. It also skips a finding
 // if an equivalent proposal is already pending, so a Routine re-reporting
 // the same unreviewed finding every two weeks doesn't spam the queue.
+//
+// new_version/new_size/new_firm findings get the same two-layer dedup:
+// skipped if the thing being "discovered" already exists in the live DB
+// (e.g. a version/size that was approved since the Routine's last run), and
+// skipped if an equivalent proposal is already pending review. A Routine
+// session never has its own DB access — it can only re-report the same
+// discovery every run — so without this it would spam a fresh duplicate
+// proposal forever instead of going quiet once the real one lands.
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { computeSizeFieldDiffs } from '@/lib/admin-proposals'
@@ -174,6 +182,90 @@ export async function POST(req: NextRequest) {
         if (!proposedData) {
           errors.push({ firmId, error: `${finding.proposalType} requires ${finding.proposalType === 'new_size' ? 'proposed' : 'data'}.` })
           continue
+        }
+
+        // Unlike update_existing, a "new" finding has no natural row to key a
+        // duplicate check off of — without this, a Routine that re-discovers
+        // the same new plan/size every biweekly run (because it has no DB
+        // access of its own to know it was already proposed or approved)
+        // would insert a fresh duplicate proposal forever, burying real
+        // signal in repeat noise.
+        if (finding.proposalType === 'new_version') {
+          const versionKey = String(proposedData.version_key || '')
+          if (!versionKey) {
+            errors.push({ firmId, error: 'new_version requires data.version_key.' })
+            continue
+          }
+          const { data: existingVersion } = await admin
+            .from('firm_rule_versions').select('id')
+            .eq('firm_id', firmId).eq('version_key', versionKey).maybeSingle()
+          if (existingVersion) {
+            skipped.push({ firmId, reason: `Version '${versionKey}' already exists — nothing to propose.` })
+            continue
+          }
+          const { data: existingPending } = await admin
+            .from('firm_rule_change_proposals')
+            .select('id')
+            .eq('firm_id', firmId).eq('proposal_type', 'new_version').eq('status', 'pending')
+            .eq('proposed_data->>version_key', versionKey)
+            .maybeSingle()
+          if (existingPending) {
+            skipped.push({ firmId, reason: `A pending 'new_version' proposal for '${versionKey}' already exists.` })
+            continue
+          }
+        }
+
+        if (finding.proposalType === 'new_size') {
+          const versionKey = String(proposedData.version_key || '')
+          const accountSize = Number(proposedData.account_size)
+          const drawdownType = String(proposedData.drawdown_type || '')
+          if (!versionKey || !accountSize || !drawdownType) {
+            errors.push({ firmId, error: 'new_size requires proposed.version_key, account_size, and drawdown_type.' })
+            continue
+          }
+          const { data: version } = await admin
+            .from('firm_rule_versions').select('id')
+            .eq('firm_id', firmId).eq('version_key', versionKey).maybeSingle()
+          if (version) {
+            const { data: existingSize } = await admin
+              .from('firm_rule_sizes').select('id')
+              .eq('firm_version_id', version.id).eq('account_size', accountSize).eq('drawdown_type', drawdownType)
+              .is('effective_to', null)
+              .maybeSingle()
+            if (existingSize) {
+              skipped.push({ firmId, reason: `$${accountSize} ${drawdownType} already exists for version '${versionKey}' — did you mean 'update_existing'?` })
+              continue
+            }
+          }
+          const { data: existingPending } = await admin
+            .from('firm_rule_change_proposals')
+            .select('id')
+            .eq('firm_id', firmId).eq('proposal_type', 'new_size').eq('status', 'pending')
+            .eq('proposed_data->>version_key', versionKey)
+            .eq('proposed_data->>account_size', String(accountSize))
+            .eq('proposed_data->>drawdown_type', drawdownType)
+            .maybeSingle()
+          if (existingPending) {
+            skipped.push({ firmId, reason: `A pending 'new_size' proposal for $${accountSize} ${drawdownType} (version '${versionKey}') already exists.` })
+            continue
+          }
+        }
+
+        if (finding.proposalType === 'new_firm') {
+          const { data: existingFirm } = await admin.from('firms').select('id').eq('id', firmId).maybeSingle()
+          if (existingFirm) {
+            skipped.push({ firmId, reason: `Firm '${firmId}' already exists — nothing to propose.` })
+            continue
+          }
+          const { data: existingPending } = await admin
+            .from('firm_rule_change_proposals')
+            .select('id')
+            .eq('firm_id', firmId).eq('proposal_type', 'new_firm').eq('status', 'pending')
+            .maybeSingle()
+          if (existingPending) {
+            skipped.push({ firmId, reason: `A pending 'new_firm' proposal for '${firmId}' already exists.` })
+            continue
+          }
         }
 
         const { data: proposal, error } = await admin.from('firm_rule_change_proposals').insert({
