@@ -138,6 +138,10 @@ export default async function EditFirmRuleSizePage({
               placeholder="20,25,30"
             />
           </div>
+          <label className="flex items-center gap-2 text-xs text-muted">
+            <input type="checkbox" name="requires_minimum_balance" defaultChecked={size.requires_minimum_balance !== false} />
+            Requires minimum balance for payout eligibility (uncheck only for a firm/plan that explicitly has no balance floor, e.g. Tradeify Select Flex)
+          </label>
 
           <div className="flex gap-3 pt-2">
             <Link

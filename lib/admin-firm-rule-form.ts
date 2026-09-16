@@ -20,6 +20,7 @@ export interface ParsedFirmRuleSize {
   payoutLadder: number[]
   minPayout: number
   minDaysBetweenPayouts: number
+  requiresMinimumBalance: boolean
   effectiveFrom: string
 }
 
@@ -41,6 +42,8 @@ export function parseFirmRuleSizeForm(formData: FormData): ParsedFirmRuleSize | 
   const consistencyRulePct = Number(formData.get('consistency_rule_pct') || 0)
   const minPayout = Number(formData.get('min_payout') || 0)
   const minDaysBetweenPayouts = Number(formData.get('min_days_between_payouts') || 0)
+  // Checkbox: present + "on" when checked, absent from formData entirely when unchecked.
+  const requiresMinimumBalance = formData.get('requires_minimum_balance') === 'on'
   const effectiveFrom = String(formData.get('effective_from') || '').trim()
   const ladderRaw = String(formData.get('payout_ladder') || '').trim()
   const consistencyScheduleRaw = String(formData.get('consistency_schedule') || '').trim()
@@ -84,6 +87,6 @@ export function parseFirmRuleSizeForm(formData: FormData): ParsedFirmRuleSize | 
   return {
     accountSize, drawdownType, drawdownAmount, dailyLossLimit, optionalDailyLossLimit, scaleDllPct, safetyNetBuffer, mllLockBuffer,
     qualifyingDayMin, minQualifyingDays, maxContracts, consistencyRulePct, consistencySchedule, payoutLadder, minPayout,
-    minDaysBetweenPayouts, effectiveFrom,
+    minDaysBetweenPayouts, requiresMinimumBalance, effectiveFrom,
   }
 }

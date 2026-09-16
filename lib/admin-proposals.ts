@@ -42,7 +42,7 @@ export const NEW_DATA_SENTINEL_EFFECTIVE_FROM = '2020-01-01'
 export const SIZE_EDITABLE_COLUMNS = [
   'drawdown_amount', 'daily_loss_limit', 'optional_daily_loss_limit', 'scale_dll_pct', 'safety_net_buffer', 'mll_lock_buffer',
   'qualifying_day_min', 'min_qualifying_days', 'max_contracts', 'consistency_rule_pct', 'consistency_schedule',
-  'payout_ladder', 'min_payout', 'min_days_between_payouts', 'extra',
+  'payout_ladder', 'min_payout', 'min_days_between_payouts', 'requires_minimum_balance', 'extra',
 ] as const
 
 export function num(v: unknown, fallback = 0): number {
@@ -68,6 +68,10 @@ function normalizeSizeColumn(col: (typeof SIZE_EDITABLE_COLUMNS)[number], v: unk
     case 'optional_daily_loss_limit':
     case 'scale_dll_pct':
       return v == null || v === '' ? null : num(v)
+    case 'requires_minimum_balance':
+      // NOT NULL DEFAULT TRUE — absent/undefined normalizes to true, same
+      // as the column's own default, not to false like num(v) would.
+      return !(v === false || v === 'false' || v === 0)
     default:
       return num(v)
   }
@@ -117,6 +121,7 @@ function normalizeSizeInput(data: Record<string, any>, effectiveFrom: string) {
     payout_ladder:        Array.isArray(data.payout_ladder) ? data.payout_ladder.map((n: unknown) => num(n)) : [],
     min_payout:           num(data.min_payout, 0),
     min_days_between_payouts: num(data.min_days_between_payouts, 0),
+    requires_minimum_balance: !(data.requires_minimum_balance === false || data.requires_minimum_balance === 'false' || data.requires_minimum_balance === 0),
     extra:                data.extra && typeof data.extra === 'object' ? data.extra : {},
     effective_from:       data.effective_from || effectiveFrom,
   }

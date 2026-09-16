@@ -70,6 +70,7 @@ export interface AccountConfig {
   payoutLadder:      number[]        // max withdrawal per payout, by payout number
   minPayout:         number
   minDaysBetweenPayouts: number      // e.g. Tradeify Select Flex's 5-day gate between payout requests; 0 = no gate (payout-eligible any day the other conditions clear)
+  requiresMinimumBalance: boolean    // false only for firms/plans (e.g. Tradeify Select Flex) that don't gate payout eligibility on balance clearing safetyNet at all — true (the default) preserves the standard balance-above-safetyNet check every other firm uses
 }
 
 // ── All computed metrics for a given account ──────────────────────────────────
