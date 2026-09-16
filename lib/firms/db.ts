@@ -36,6 +36,7 @@ type FirmRuleSizeRow = {
   payout_ladder:        (number | string)[] | null
   min_payout:           number | string
   min_days_between_payouts: number
+  requires_minimum_balance: boolean
 }
 
 function buildConfig(
@@ -75,6 +76,7 @@ function buildConfig(
     payoutLadder:      (row.payout_ladder || []).map(Number),
     minPayout:         Number(row.min_payout),
     minDaysBetweenPayouts: Number(row.min_days_between_payouts || 0),
+    requiresMinimumBalance: row.requires_minimum_balance !== false,
   }
 }
 

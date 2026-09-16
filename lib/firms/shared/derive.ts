@@ -90,7 +90,13 @@ export function derive(
     || daysSinceLastPayout === null
     || daysSinceLastPayout >= config.minDaysBetweenPayouts
 
-  const payoutEligible = aboveSN >= config.minPayout && consOk && qualDays >= config.minQualifyingDays && payoutFrequencyOk
+  // Tradeify Select Flex has no minimum account balance requirement at all
+  // ("You can request a payout immediately after achieving 5 winning days,
+  // regardless of your account balance" — Tradeify's own help center). Every
+  // other firm/plan (requiresMinimumBalance === true, the default) keeps
+  // requiring balance to clear safetyNet by at least minPayout.
+  const balanceOk = config.requiresMinimumBalance ? aboveSN >= config.minPayout : true
+  const payoutEligible = balanceOk && consOk && qualDays >= config.minQualifyingDays && payoutFrequencyOk
   // An empty payoutLadder is a real gap (a firm/size onboarded without its
   // payout amounts entered yet — see supabase data for Lucid, e.g.) rather
   // than a firm that genuinely caps payouts at $0. Indexing into [] gives

@@ -69,6 +69,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     payout_ladder: parsed.payoutLadder,
     min_payout: parsed.minPayout,
     min_days_between_payouts: parsed.minDaysBetweenPayouts,
+    requires_minimum_balance: parsed.requiresMinimumBalance,
     effective_from: parsed.effectiveFrom,
     created_by: auth.user.id,
   })

@@ -180,6 +180,10 @@ export default async function AdminVersionSizesPage({
             <label className="label">Consistency Schedule (comma-separated %, blank = flat rate above, escalates by payout count)</label>
             <input type="text" name="consistency_schedule" className="input" placeholder="20,25,30" />
           </div>
+          <label className="flex items-center gap-2 text-xs text-muted">
+            <input type="checkbox" name="requires_minimum_balance" defaultChecked />
+            Requires minimum balance for payout eligibility (uncheck only for a firm/plan that explicitly has no balance floor, e.g. Tradeify Select Flex)
+          </label>
 
           <button type="submit" className="btn border-amber text-amber hover:bg-amber/10">
             + Add Size
