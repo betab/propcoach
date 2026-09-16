@@ -131,13 +131,20 @@ function normalizeSizeInput(data: Record<string, any>, effectiveFrom: string) {
 // exactly how Lucid/Tradeify Lightning ended up with real production
 // duplicates — a correction proposal that should have been update_existing
 // got submitted as new_size instead and nothing caught it.
+// Returns `error` when the existence check itself couldn't be trusted (a
+// failed query), distinct from `exists: false` (query succeeded, genuinely
+// no open row). Collapsing those into one boolean is exactly what let a
+// transient query failure fail OPEN instead of closed here before: `data`
+// comes back undefined on error same as on a real "not found", so `!!data`
+// silently reports "no open row" either way — the wrong default for a
+// guard whose entire job is to block a duplicate insert.
 async function hasOpenRow(
   supabase: SupabaseClient,
   firmVersionId: string,
   accountSize: number,
   drawdownType: string
-): Promise<boolean> {
-  const { data } = await supabase
+): Promise<{ exists: boolean; error?: string }> {
+  const { data, error } = await supabase
     .from('firm_rule_sizes')
     .select('id')
     .eq('firm_version_id', firmVersionId)
@@ -145,7 +152,8 @@ async function hasOpenRow(
     .eq('drawdown_type', drawdownType)
     .is('effective_to', null)
     .maybeSingle()
-  return !!data
+  if (error) return { exists: false, error: error.message }
+  return { exists: !!data }
 }
 
 export interface ProposalRow {
@@ -215,7 +223,9 @@ export async function applyProposal(
       const row = normalizeSizeInput(data, effectiveFrom)
       if (!row.account_size || !row.drawdown_type) return { error: 'proposed_data must include account_size and drawdown_type.' }
 
-      if (await hasOpenRow(supabase, version.id, row.account_size, row.drawdown_type)) {
+      const openCheck = await hasOpenRow(supabase, version.id, row.account_size, row.drawdown_type)
+      if (openCheck.error) return { error: `Could not verify there's no existing row: ${openCheck.error}` }
+      if (openCheck.exists) {
         return {
           error: `A current row already exists for $${row.account_size} ${row.drawdown_type} on this version — ` +
             `this should be an "update existing" proposal, not "new size". Reject this one and correct the existing row instead.`,
@@ -249,7 +259,9 @@ export async function applyProposal(
         // Defense in depth: newVersion.id was just created above, so this
         // can only trip on a malformed payload listing the same size twice
         // — but it's the same cheap check as new_size, so no reason to skip it.
-        if (await hasOpenRow(supabase, newVersion.id, row.account_size, row.drawdown_type)) {
+        const openCheck = await hasOpenRow(supabase, newVersion.id, row.account_size, row.drawdown_type)
+        if (openCheck.error) return { error: `Version created, but couldn't verify $${row.account_size} ${row.drawdown_type} isn't a duplicate: ${openCheck.error}` }
+        if (openCheck.exists) {
           return { error: `Version created, but proposed_data.sizes lists $${row.account_size} ${row.drawdown_type} more than once.` }
         }
         const { error } = await supabase.from('firm_rule_sizes').insert({ firm_version_id: newVersion.id, ...row, created_by: userId })
@@ -290,7 +302,9 @@ export async function applyProposal(
           if (!row.account_size || !row.drawdown_type) {
             return { error: 'Firm/version created, but one of a version\'s sizes is missing account_size or drawdown_type.' }
           }
-          if (await hasOpenRow(supabase, newVersion.id, row.account_size, row.drawdown_type)) {
+          const openCheck = await hasOpenRow(supabase, newVersion.id, row.account_size, row.drawdown_type)
+          if (openCheck.error) return { error: `Firm/version created, but couldn't verify $${row.account_size} ${row.drawdown_type} isn't a duplicate: ${openCheck.error}` }
+          if (openCheck.exists) {
             return { error: `Firm/version created, but a version's sizes list $${row.account_size} ${row.drawdown_type} more than once.` }
           }
           const { error } = await supabase.from('firm_rule_sizes').insert({ firm_version_id: newVersion.id, ...row, created_by: userId })
