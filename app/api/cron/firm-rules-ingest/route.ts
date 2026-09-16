@@ -196,19 +196,27 @@ export async function POST(req: NextRequest) {
             errors.push({ firmId, error: 'new_version requires data.version_key.' })
             continue
           }
-          const { data: existingVersion } = await admin
+          const { data: existingVersion, error: existingVersionError } = await admin
             .from('firm_rule_versions').select('id')
             .eq('firm_id', firmId).eq('version_key', versionKey).maybeSingle()
+          if (existingVersionError) {
+            errors.push({ firmId, error: `Could not verify version '${versionKey}' isn't already tracked: ${existingVersionError.message}` })
+            continue
+          }
           if (existingVersion) {
             skipped.push({ firmId, reason: `Version '${versionKey}' already exists — nothing to propose.` })
             continue
           }
-          const { data: existingPending } = await admin
+          const { data: existingPending, error: existingPendingError } = await admin
             .from('firm_rule_change_proposals')
             .select('id')
             .eq('firm_id', firmId).eq('proposal_type', 'new_version').eq('status', 'pending')
             .eq('proposed_data->>version_key', versionKey)
             .maybeSingle()
+          if (existingPendingError) {
+            errors.push({ firmId, error: `Could not verify no pending 'new_version' proposal exists for '${versionKey}': ${existingPendingError.message}` })
+            continue
+          }
           if (existingPending) {
             skipped.push({ firmId, reason: `A pending 'new_version' proposal for '${versionKey}' already exists.` })
             continue
@@ -223,21 +231,29 @@ export async function POST(req: NextRequest) {
             errors.push({ firmId, error: 'new_size requires proposed.version_key, account_size, and drawdown_type.' })
             continue
           }
-          const { data: version } = await admin
+          const { data: version, error: versionError } = await admin
             .from('firm_rule_versions').select('id')
             .eq('firm_id', firmId).eq('version_key', versionKey).maybeSingle()
+          if (versionError) {
+            errors.push({ firmId, error: `Could not look up version '${versionKey}': ${versionError.message}` })
+            continue
+          }
           if (version) {
-            const { data: existingSize } = await admin
+            const { data: existingSize, error: existingSizeError } = await admin
               .from('firm_rule_sizes').select('id')
               .eq('firm_version_id', version.id).eq('account_size', accountSize).eq('drawdown_type', drawdownType)
               .is('effective_to', null)
               .maybeSingle()
+            if (existingSizeError) {
+              errors.push({ firmId, error: `Could not verify $${accountSize} ${drawdownType} isn't already tracked: ${existingSizeError.message}` })
+              continue
+            }
             if (existingSize) {
               skipped.push({ firmId, reason: `$${accountSize} ${drawdownType} already exists for version '${versionKey}' — did you mean 'update_existing'?` })
               continue
             }
           }
-          const { data: existingPending } = await admin
+          const { data: existingPending, error: existingPendingError } = await admin
             .from('firm_rule_change_proposals')
             .select('id')
             .eq('firm_id', firmId).eq('proposal_type', 'new_size').eq('status', 'pending')
@@ -245,6 +261,10 @@ export async function POST(req: NextRequest) {
             .eq('proposed_data->>account_size', String(accountSize))
             .eq('proposed_data->>drawdown_type', drawdownType)
             .maybeSingle()
+          if (existingPendingError) {
+            errors.push({ firmId, error: `Could not verify no pending 'new_size' proposal exists for $${accountSize} ${drawdownType}: ${existingPendingError.message}` })
+            continue
+          }
           if (existingPending) {
             skipped.push({ firmId, reason: `A pending 'new_size' proposal for $${accountSize} ${drawdownType} (version '${versionKey}') already exists.` })
             continue
@@ -252,16 +272,24 @@ export async function POST(req: NextRequest) {
         }
 
         if (finding.proposalType === 'new_firm') {
-          const { data: existingFirm } = await admin.from('firms').select('id').eq('id', firmId).maybeSingle()
+          const { data: existingFirm, error: existingFirmError } = await admin.from('firms').select('id').eq('id', firmId).maybeSingle()
+          if (existingFirmError) {
+            errors.push({ firmId, error: `Could not verify firm '${firmId}' doesn't already exist: ${existingFirmError.message}` })
+            continue
+          }
           if (existingFirm) {
             skipped.push({ firmId, reason: `Firm '${firmId}' already exists — nothing to propose.` })
             continue
           }
-          const { data: existingPending } = await admin
+          const { data: existingPending, error: existingPendingError } = await admin
             .from('firm_rule_change_proposals')
             .select('id')
             .eq('firm_id', firmId).eq('proposal_type', 'new_firm').eq('status', 'pending')
             .maybeSingle()
+          if (existingPendingError) {
+            errors.push({ firmId, error: `Could not verify no pending 'new_firm' proposal exists for '${firmId}': ${existingPendingError.message}` })
+            continue
+          }
           if (existingPending) {
             skipped.push({ firmId, reason: `A pending 'new_firm' proposal for '${firmId}' already exists.` })
             continue
