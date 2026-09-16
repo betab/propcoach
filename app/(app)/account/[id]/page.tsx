@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { getFirmConfigForAccount, derive, buildCoaching } from '@/lib/firms'
 import type { Entry, AccountConfig, DerivedMetrics, CoachingRule } from '@/lib/firms/types'
+import { formatDrawdownType } from '@/lib/format'
 import RulesEditor from '@/components/RulesEditor'
 import TradingCalendar from '@/components/TradingCalendar'
 
@@ -95,9 +96,10 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
               </span>
             )}
           </h1>
-          {account.account_number && (
-            <p className="text-xs text-muted mt-0.5">{account.account_number}</p>
-          )}
+          <p className="text-xs text-muted mt-0.5">
+            {config?.firmName || account.firm_id} · {formatDrawdownType(account.drawdown_type)} · {account.version}
+            {account.account_number && <> · {account.account_number}</>}
+          </p>
         </div>
         <div className="flex gap-2 flex-wrap">
           <Link href={`/account/${account.id}/history`} className="btn">📋 History</Link>

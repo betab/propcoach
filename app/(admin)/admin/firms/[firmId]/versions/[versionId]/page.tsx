@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { NEW_DATA_SENTINEL_EFFECTIVE_FROM } from '@/lib/admin-proposals'
+import { formatDrawdownType } from '@/lib/format'
 
 function fmt(n: number | string | null): string {
   if (n == null) return '—'
@@ -68,7 +69,7 @@ export default async function AdminVersionSizesPage({
                 {sorted.map(s => (
                   <tr key={s.id} className={`border-t border-border/50 ${s.effective_to ? 'opacity-40' : ''}`}>
                     <td className="py-2 pr-4 text-white">${(s.account_size / 1000).toFixed(0)}K</td>
-                    <td className="py-2 pr-4 text-muted">{s.drawdown_type === 'trailing_eod' ? 'EOD' : 'Intraday'}</td>
+                    <td className="py-2 pr-4 text-muted">{formatDrawdownType(s.drawdown_type)}</td>
                     <td className="py-2 pr-4 text-muted">{fmt(s.drawdown_amount)}</td>
                     <td className="py-2 pr-4 text-muted">{fmt(s.daily_loss_limit)}</td>
                     <td className="py-2 pr-4 text-muted">{fmt(s.optional_daily_loss_limit)}</td>
