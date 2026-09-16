@@ -192,10 +192,15 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
           { label: 'Daily Loss Limit', value: m.effectiveDailyLossLimit ? fmt(m.effectiveDailyLossLimit) : 'None', sub: m.dllIsDynamic ? `${config.scaleDllPct}% of peak balance — moves daily` : m.effectiveDailyLossLimit ? "Pauses — won't kill" : 'No DLL on this account', color: '#ffaa00' },
           { label: 'Consistency',      value: m.consistencyPct.toFixed(0) + '%', sub: m.activeConsistencyRule === 0 ? 'No consistency rule' : m.consistencyOk ? `✅ Under ${m.activeConsistencyRule}% — OK` : `❌ Over ${m.activeConsistencyRule}% — Blocked`, color: m.consistencyOk ? '#00ff88' : '#ff4444' },
           { label: 'Qualifying Days',  value: String(m.qualifyingDays), sub: `$${config.qualifyingDayMin}+ days logged`, color: '#7aa3d4' },
-          { label: `Payout #${account.payout_count + 1}`, value: m.nextPayoutMax != null ? fmt(m.nextPayoutMax) : '—', sub: m.nextPayoutMax == null ? '⚠ Payout ladder not set yet' : m.payoutEligible ? '✅ Eligible now' : !m.payoutFrequencyOk ? `⏳ ${config.minDaysBetweenPayouts - (m.daysSinceLastPayout ?? 0)}d until next payout` : 'Not eligible yet', color: m.nextPayoutMax == null ? '#ffaa00' : m.payoutEligible ? '#00ff88' : '#5a7a90' },
+          { label: `Payout #${account.payout_count + 1}`, value: m.nextPayoutMax != null ? fmt(m.nextPayoutMax) : '—', sub: m.nextPayoutMax == null ? '⚠ Payout ladder not set yet' : m.payoutEligible ? '✅ Eligible now' : !m.payoutFrequencyOk ? `⏳ ${config.minDaysBetweenPayouts - (m.daysSinceLastPayout ?? 0)}d until next payout` : 'Not eligible yet', color: m.nextPayoutMax == null ? '#ffaa00' : m.payoutEligible ? '#00ff88' : '#5a7a90', disclaimer: 'payout-eligibility' },
         ].map(s => (
           <div key={s.label} className="card">
-            <div className="stat-label">{s.label}</div>
+            <div className="stat-label">
+              {s.label}
+              {s.disclaimer && (
+                <a href={`#disclaimer-${s.disclaimer}`} className="text-dim no-underline hover:text-amber ml-0.5">*</a>
+              )}
+            </div>
             <div className="stat-value" style={{ color: s.color }}>{s.value}</div>
             <div className="stat-sub">{s.sub}</div>
           </div>

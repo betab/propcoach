@@ -4,17 +4,22 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import SignOutButton from '@/components/SignOutButton'
 import Avatar from '@/components/Avatar'
+import DisclaimerFooter from '@/components/DisclaimerFooter'
+import { getActiveDisclaimers } from '@/lib/disclaimers'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('display_name, plan, role, avatar_url')
-    .eq('id', user.id)
-    .single()
+  const [{ data: profile }, disclaimers] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('display_name, plan, role, avatar_url')
+      .eq('id', user.id)
+      .single(),
+    getActiveDisclaimers(supabase),
+  ])
 
   const isAdmin = !!profile?.role && profile.role !== 'user'
 
@@ -56,6 +61,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
         {children}
       </main>
+      <DisclaimerFooter disclaimers={disclaimers} />
     </div>
   )
 }
