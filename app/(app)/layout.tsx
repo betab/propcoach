@@ -33,7 +33,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </nav>
         </div>
         <div className="flex items-center gap-4">
-          {profile?.plan === 'free' && (
+          {profile?.plan === 'free' && !isAdmin && (
             <Link
               href="/settings/billing"
               className="text-[10px] tracking-widest uppercase border border-amber/40 text-amber px-3 py-1.5 rounded hover:bg-amber/10 transition-colors"
