@@ -192,9 +192,19 @@ export async function applyProposal(
         merged[col] = col in (proposal.field_diffs || {}) ? proposal.field_diffs[col].new : oldRow[col]
       }
 
-      const { error: closeError } = await supabase
+      // .select() here isn't cosmetic: without it, a 0-row update (e.g. an
+      // RLS policy silently filtering it out) reports no error at all —
+      // that's exactly how every supersession's close-out went unnoticed
+      // before 016_firm_rule_sizes_update_policy.sql added the missing
+      // UPDATE policy. Checking the returned rows is what makes this fail
+      // loudly instead of silently leaving the old row open forever.
+      const { data: closedRows, error: closeError } = await supabase
         .from('firm_rule_sizes').update({ effective_to: effectiveFrom }).eq('id', oldRow.id)
+        .select('id')
       if (closeError) return { error: closeError.message }
+      if (!closedRows || closedRows.length === 0) {
+        return { error: 'Closing the current row affected 0 rows — check RLS UPDATE policy on firm_rule_sizes.' }
+      }
 
       const { error: insertError } = await supabase.from('firm_rule_sizes').insert({
         firm_version_id: oldRow.firm_version_id,
