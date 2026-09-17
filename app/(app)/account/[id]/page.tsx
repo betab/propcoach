@@ -97,7 +97,7 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
             )}
           </h1>
           <p className="text-xs text-muted mt-0.5">
-            {config?.firmName || account.firm_id} · {formatDrawdownType(account.drawdown_type)} · {account.version}
+            {config?.firmName || account.firm_id} · {formatDrawdownType(account.drawdown_type)} · <span className="font-bold uppercase text-white">{account.version}</span>
             {account.account_number && <> · {account.account_number}</>}
           </p>
         </div>
