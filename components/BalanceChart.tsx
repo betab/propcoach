@@ -14,10 +14,23 @@ function fmtDate(ts: number) {
   return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
 }
 
-// Recharts needs a numeric X to place points on a real time scale (so a gap
-// over a weekend with no entries actually renders as a gap, not evenly
-// spaced ticks) — 'YYYY-MM-DD' parses fine as UTC midnight for that purpose.
+// One row per logged entry only — no row (and so no plotted point) for a day
+// nothing was logged, weekends included. 'ts' still carries the real date
+// (for the tooltip header) but the axis is categorical, not time-scaled, so
+// entries sit evenly spaced with no gap reserved for the days between them.
 type ChartRow = { ts: number; balance: number; minimum: number; lossLimitFloor: number | null }
+
+// Short stroke-style swatches instead of dots — mirrors each series' actual
+// line style (the dataviz skill's own guidance: a legend key should mirror
+// the mark), and reads as this chart's own design rather than a copy of the
+// reference screenshot it was designed against.
+function LegendSwatch({ color, dash }: { color: string; dash?: string }) {
+  return (
+    <svg width="16" height="8" className="shrink-0" aria-hidden="true">
+      <line x1="0" y1="4" x2="16" y2="4" stroke={color} strokeWidth={2} strokeDasharray={dash} strokeLinecap="round" />
+    </svg>
+  )
+}
 
 function CustomTooltip({ active, payload }: { active?: boolean; payload?: { payload: ChartRow }[] }) {
   if (!active || !payload || payload.length === 0) return null
@@ -59,19 +72,26 @@ export default function BalanceChart({ data }: { data: BalanceHistoryPoint[] }) 
 
   if (rows.length < 2) return null
 
+  // $100-stepped Y-axis ticks, padded one step past the data's own range.
+  const allValues = rows.flatMap(r => [r.balance, r.minimum, ...(r.lossLimitFloor != null ? [r.lossLimitFloor] : [])])
+  const domainMin = Math.floor(Math.min(...allValues) / 100) * 100 - 100
+  const domainMax = Math.ceil(Math.max(...allValues) / 100) * 100 + 100
+  const yTicks: number[] = []
+  for (let v = domainMin; v <= domainMax; v += 100) yTicks.push(v)
+
   return (
     <div className="card mb-3">
       {/* Legend — hand-rolled to match the app's own label style rather than
           recharts' default legend chrome */}
       <div className="flex items-center gap-4 mb-3">
         {[
-          ['#00ff88', 'Balance'],
-          ['#ff4444', 'Minimum'],
-          ...(hasLossLimit ? [['#7aa3d4', 'Loss Limit']] : []),
-        ].map(([color, label]) => (
-          <div key={label} className="flex items-center gap-1.5">
-            <span className="inline-block w-2 h-2 rounded-full" style={{ background: color }} />
-            <span className="text-xs text-muted">{label}</span>
+          { color: '#00ff88', label: 'Balance' },
+          { color: '#ff4444', label: 'Minimum' },
+          ...(hasLossLimit ? [{ color: '#7aa3d4', label: 'Loss Limit', dash: '1 3' }] : []),
+        ].map(s => (
+          <div key={s.label} className="flex items-center gap-1.5">
+            <LegendSwatch color={s.color} dash={'dash' in s ? s.dash : undefined} />
+            <span className="text-xs text-muted">{s.label}</span>
           </div>
         ))}
       </div>
@@ -87,8 +107,7 @@ export default function BalanceChart({ data }: { data: BalanceHistoryPoint[] }) 
           <CartesianGrid stroke="#1a2332" strokeWidth={1} vertical={false} />
           <XAxis
             dataKey="ts"
-            type="number"
-            domain={['dataMin', 'dataMax']}
+            type="category"
             tickFormatter={fmtDate}
             tick={{ fill: '#5a7a90', fontSize: 11 }}
             axisLine={{ stroke: '#1a2332' }}
@@ -101,7 +120,9 @@ export default function BalanceChart({ data }: { data: BalanceHistoryPoint[] }) 
             axisLine={false}
             tickLine={false}
             width={70}
-            domain={['dataMin - 100', 'dataMax + 100']}
+            domain={[domainMin, domainMax]}
+            ticks={yTicks}
+            interval={0}
           />
           <Tooltip
             content={<CustomTooltip />}
@@ -122,7 +143,6 @@ export default function BalanceChart({ data }: { data: BalanceHistoryPoint[] }) 
             dataKey="minimum"
             stroke="#ff4444"
             strokeWidth={2}
-            strokeDasharray="6 4"
             dot={false}
             activeDot={false}
             isAnimationActive={false}
