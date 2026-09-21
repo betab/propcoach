@@ -97,7 +97,7 @@ export default function BalanceChart({ data }: { data: BalanceHistoryPoint[] }) 
       </div>
 
       <ResponsiveContainer width="100%" height={280}>
-        <ComposedChart data={rows} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+        <ComposedChart data={rows} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
           <defs>
             <linearGradient id="balanceFill" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#00ff88" stopOpacity={0.18} />
@@ -108,6 +108,7 @@ export default function BalanceChart({ data }: { data: BalanceHistoryPoint[] }) 
           <XAxis
             dataKey="ts"
             type="category"
+            padding={{ left: 12, right: 12 }}
             tickFormatter={fmtDate}
             tick={{ fill: '#5a7a90', fontSize: 11 }}
             axisLine={{ stroke: '#1a2332' }}
