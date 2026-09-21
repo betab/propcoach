@@ -27,6 +27,13 @@ function computeMLL(config: AccountConfig, peakBalance: number): number {
 
 function clamp(v: number, lo: number, hi: number) { return Math.max(lo, Math.min(hi, v)) }
 
+// Shared by derive() and deriveBalanceHistory() so the day-by-day chart data
+// and the current-state metrics can never quietly disagree on this formula.
+function computeEffectiveDailyLossLimit(config: AccountConfig, peak: number, mllLocked: boolean): number | null {
+  const dllIsDynamic = mllLocked && config.scaleDllPct != null
+  return dllIsDynamic ? peak * (config.scaleDllPct! / 100) : config.dailyLossLimit
+}
+
 export function derive(
   config: AccountConfig,
   entries: Entry[],
@@ -54,9 +61,7 @@ export function derive(
   // except Lucid) always fall through to the static dailyLossLimit — this
   // never changes behavior for Apex/TopStep/Tradeify accounts.
   const dllIsDynamic = mllLocked && config.scaleDllPct != null
-  const effectiveDailyLossLimit = dllIsDynamic
-    ? peak * (config.scaleDllPct! / 100)
-    : config.dailyLossLimit
+  const effectiveDailyLossLimit = computeEffectiveDailyLossLimit(config, peak, mllLocked)
   const aboveSN      = bal - config.safetyNet
 
   const winEntries   = entries.filter(e => e.pnl > 0)
@@ -141,4 +146,40 @@ export function derive(
     lossDays:        lossEntries.length,
     winRate,
   }
+}
+
+export interface BalanceHistoryPoint {
+  date:           string        // entry.date, 'YYYY-MM-DD'
+  balance:        number        // running balance as of this entry
+  minimum:        number        // currentMLL as of this entry — the trailing floor, same formula derive() uses
+  lossLimitFloor: number | null // balance - effectiveDailyLossLimit as of this entry; null when this firm/plan has no DLL
+}
+
+// One point per logged entry (chronological order expected, same contract as
+// derive() — the account pages already fetch entries ordered ascending by
+// date). Powers the account page's balance chart. Deliberately does NOT
+// include a point for "today" or any un-logged day — the chart only ever
+// shows real, logged data, same as every other metric on the account page.
+export function deriveBalanceHistory(config: AccountConfig, entries: Entry[]): BalanceHistoryPoint[] {
+  let bal  = config.accountSize
+  let peak = config.accountSize
+  const points: BalanceHistoryPoint[] = []
+
+  for (const e of entries) {
+    bal += e.pnl
+    if (bal > peak) peak = bal
+
+    const minimum    = computeMLL(config, peak)
+    const mllLocked  = minimum >= config.mllLockAt
+    const effectiveDailyLossLimit = computeEffectiveDailyLossLimit(config, peak, mllLocked)
+
+    points.push({
+      date: e.date,
+      balance: bal,
+      minimum,
+      lossLimitFloor: effectiveDailyLossLimit != null ? bal - effectiveDailyLossLimit : null,
+    })
+  }
+
+  return points
 }

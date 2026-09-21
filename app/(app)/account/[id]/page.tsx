@@ -2,11 +2,13 @@
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import { getFirmConfigForAccount, derive, buildCoaching } from '@/lib/firms'
+import { getFirmConfigForAccount, derive, deriveBalanceHistory, buildCoaching } from '@/lib/firms'
 import type { Entry, AccountConfig, DerivedMetrics, CoachingRule } from '@/lib/firms/types'
+import type { BalanceHistoryPoint } from '@/lib/firms/shared/derive'
 import { formatDrawdownType } from '@/lib/format'
 import RulesEditor from '@/components/RulesEditor'
 import TradingCalendar from '@/components/TradingCalendar'
+import BalanceChart from '@/components/BalanceChart'
 
 function fmt(n: number)  { return (n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString() }
 function fmtS(n: number) { return (n > 0 ? '+$' : n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString() }
@@ -61,11 +63,13 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
   let config: AccountConfig | null = null
   let m: DerivedMetrics | null = null
   let coach: CoachingRule[] = []
+  let history: BalanceHistoryPoint[] = []
   let configError: string | null = null
   try {
-    config = await getFirmConfigForAccount(supabase, account)
-    m      = derive(config, entries, account.payout_count, lastPayout?.recorded_at ?? null)
-    coach  = buildCoaching(config, m, entries, account.payout_count)
+    config  = await getFirmConfigForAccount(supabase, account)
+    m       = derive(config, entries, account.payout_count, lastPayout?.recorded_at ?? null)
+    coach   = buildCoaching(config, m, entries, account.payout_count)
+    history = deriveBalanceHistory(config, entries)
   } catch (err) {
     configError = err instanceof Error ? err.message : 'Unknown error resolving this account\'s rules.'
   }
@@ -187,6 +191,8 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
           </div>
         ))}
       </div>
+
+      <BalanceChart data={history} />
 
       {/* Secondary stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
