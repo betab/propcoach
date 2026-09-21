@@ -19,5 +19,5 @@ export {
   getAvailableSizes,
 } from './db'
 
-export { derive } from './shared/derive'
+export { derive, deriveBalanceHistory } from './shared/derive'
 export { buildCoaching } from './shared/coaching'
