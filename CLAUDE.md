@@ -26,18 +26,17 @@ app/
     firms/…, firms/[firmId]/versions/[versionId]/sizes/[sizeId]  — firm rule CRUD
     proposals                             — monitoring queue, approve/reject
     team                                  — super_admin only: grant/revoke roles
+    users, users/[userId], users/[userId]/accounts/[accountId]  — super_admin only: direct profile/plan/account/entry editing (support/correction tool)
     disclaimers
   api/
     accounts, accounts/[id]/{status,payout}
     entries/[id]/delete
-    admin/…                               — mirrors the (admin) pages, all mutation routes
+    admin/…                               — mirrors the (admin) pages, all mutation routes, incl. admin/users/*
     cron/firm-rules-ingest                — monitoring Routine POSTs findings here
     cron/firm-source-fetch                — allowlisted fetch-proxy for firm research
     stripe/{checkout,portal,webhook}
 proxy.ts                                  — Next.js middleware (best-effort redirect only, see guard pattern below)
 ```
-
-**Not yet built:** `app/(admin)/admin/users/…` + `app/api/admin/users/…` — Super Admin direct editing of another user's profile/accounts/entries. Planned, scoped, not started (see `/root/.claude/plans/velvety-jumping-waterfall.md`).
 
 ---
 
@@ -179,7 +178,9 @@ The admin route group (`(admin)`) uses this same palette but with amber-forward 
 
 ## Where the plan lives
 
-`/root/.claude/plans/velvety-jumping-waterfall.md` — architecture reference for the DB-backed firm rules system (now shipped) plus the one remaining piece (Super Admin user-record editing, not yet built) and the separate not-yet-scoped reporting-dashboard milestone (user stats, bulk account actions).
+`/root/.claude/plans/velvety-jumping-waterfall.md` — architecture reference for the DB-backed firm rules system and the Super Admin user-record editing feature (both now fully shipped) plus the separate not-yet-scoped reporting-dashboard milestone (user stats, bulk account actions) — that one's still to be planned.
+
+**Open verification item:** PR7 (Super Admin user-record editing, `admin/users/*`) was only smoke-tested for routing in a sandbox with no live Supabase — its real data flows (search, profile/plan edits, account config edits, entry edits) still need a manual pass against the live project.
 
 ---
 
