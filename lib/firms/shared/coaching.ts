@@ -244,7 +244,17 @@ export function buildCoaching(
       })
     }
     const lastDay = recent[recent.length - 1]
-    if (lastDay.pnl > config.qualifyingDayMin * 2.5) {
+    // qualifyingDayMin*2.5 degenerates to ">$0" — any winning day at all —
+    // for firms with no qualifying minimum (Lucid entirely, Tradeify
+    // Lightning/Select Daily: qualifyingDayMin=0). Found 2026-09-22 via a
+    // live-account audit: a genuine $304 day on a $50K Lucid account was
+    // flagging as "Big Day Yesterday" even though it's under that
+    // account's own $375 Daily Target. Falls back to baseTarget (the same
+    // size-scaled floor the risk slider is built from, always > 0) so
+    // "big day" stays a real bar instead of firing on a few-dollar win —
+    // unchanged for every firm that already has a real qualifyingDayMin.
+    const bigDayThreshold = (config.qualifyingDayMin > 0 ? config.qualifyingDayMin : baseTarget) * 2.5
+    if (lastDay.pnl > bigDayThreshold) {
       rules.push({
         label:    'Big Day Yesterday',
         value:    fmtS(lastDay.pnl),
