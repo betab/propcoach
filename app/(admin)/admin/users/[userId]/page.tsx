@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { formatDrawdownType } from '@/lib/format'
+import DeleteUserButton from '@/components/DeleteUserButton'
 
 function fmt(n: number) {
   return (n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString()
@@ -124,6 +125,21 @@ export default async function AdminUserDetailPage({ params }: { params: Promise<
           <div className="text-xs text-dim">No accounts yet.</div>
         )}
       </div>
+
+      {/* Danger zone — hidden for your own account (see the route's own
+          guard against self-deletion; this just keeps the option from
+          being shown at all where it can never succeed). */}
+      {user.id !== userId && (
+        <div className="card mt-4 border-danger/40">
+          <div className="stat-label mb-2 text-danger">Danger Zone</div>
+          <p className="text-xs text-muted mb-3">
+            Permanently deletes this user and everything tied to them — profile, all accounts, entries, and
+            payouts. This does not touch Stripe (cancel any active subscription there first if needed). Cannot
+            be undone.
+          </p>
+          <DeleteUserButton userId={userId} email={authUser?.user?.email || ''} />
+        </div>
+      )}
     </div>
   )
 }
