@@ -27,6 +27,52 @@ const BASE_TARGET_PCT = 0.005
 const STOP_LOSS_BASE_FRACTION = 0.4
 const STOP_LOSS_MAX_BUFFER_FRACTION = 0.8
 
+// Shared between buildCoaching() and getConsistencyBreachMultiplier() so
+// the two can never quietly disagree on what the base target or the
+// consistency ceiling are.
+function computeRiskMath(config: AccountConfig, m: DerivedMetrics): { baseTarget: number; maxTomorrow: number | null } {
+  const rawBase    = config.accountSize * BASE_TARGET_PCT
+  const baseTarget = config.qualifyingDayMin > 0 ? Math.max(rawBase, config.qualifyingDayMin) : rawBase
+
+  // Max profit tomorrow before tripping the consistency wall (activeConsistencyRule
+  // accounts for firms like Tradeify Lightning where the cap escalates by payout count).
+  //
+  // Exact solution: if tomorrow's profit x becomes the new biggest day, the
+  // constraint is x/(totalProfit+x) < c (c = cap as a fraction) — solving
+  // gives x < c*totalProfit/(1-c). Previously this computed
+  // totalProfit*(c-eps) - biggestDay, which doesn't account for x also
+  // growing the denominator — that formula was always conservative (never
+  // unsafe) but could understate real headroom several-fold early in an
+  // account's history (verified case: showed $990 vs. a true ~$4,286 on
+  // $10K total profit / $2K biggest day / 30% cap).
+  //
+  // null = no live ceiling to speak of (no active consistency rule, or no
+  // profit logged yet to compute a ratio against).
+  const c = m.activeConsistencyRule / 100
+  const maxTomorrow = m.activeConsistencyRule > 0 && m.totalProfit > 0
+    ? Math.floor((m.totalProfit * c / (1 - c)) * 0.999) // epsilon to stay strictly under
+    : null
+
+  return { baseTarget, maxTomorrow }
+}
+
+/**
+ * The daily_target_multiplier value at which the trader's raw target
+ * (baseTarget × multiplier) would first exceed the live consistency
+ * ceiling — the point DailyTargetSlider marks with its breach indicator.
+ * Returned uncapped: a caller comparing against the slider's own min/max
+ * decides whether the breach point falls inside the visible 0.5x-2.0x
+ * range, sits at/before the conservative end (the whole range is already
+ * past it), or past the aggressive end (nothing on the slider reaches it).
+ * null = no reachable breach at all — no active consistency rule yet, or
+ * no profit logged yet to compute a ratio against.
+ */
+export function getConsistencyBreachMultiplier(config: AccountConfig, m: DerivedMetrics): number | null {
+  const { baseTarget, maxTomorrow } = computeRiskMath(config, m)
+  if (maxTomorrow === null || baseTarget <= 0) return null
+  return maxTomorrow / baseTarget
+}
+
 export function buildCoaching(
   config:                 AccountConfig,
   m:                      DerivedMetrics,
@@ -42,25 +88,10 @@ export function buildCoaching(
     ? 'build'
     : 'payout'
 
-  const rawBase    = config.accountSize * BASE_TARGET_PCT
-  const baseTarget = config.qualifyingDayMin > 0 ? Math.max(rawBase, config.qualifyingDayMin) : rawBase
+  const { baseTarget, maxTomorrow: maxTomorrowOrNull } = computeRiskMath(config, m)
+  const maxTomorrow  = maxTomorrowOrNull ?? 99999 // sentinel: no live ceiling, never binds below
   const tieredTarget = Math.round(baseTarget * dailyTargetMultiplier)
 
-  // Max profit tomorrow before tripping the consistency wall (activeConsistencyRule
-  // accounts for firms like Tradeify Lightning where the cap escalates by payout count).
-  //
-  // Exact solution: if tomorrow's profit x becomes the new biggest day, the
-  // constraint is x/(totalProfit+x) < c (c = cap as a fraction) — solving
-  // gives x < c*totalProfit/(1-c). Previously this computed
-  // totalProfit*(c-eps) - biggestDay, which doesn't account for x also
-  // growing the denominator — that formula was always conservative (never
-  // unsafe) but could understate real headroom several-fold early in an
-  // account's history (verified case: showed $990 vs. a true ~$4,286 on
-  // $10K total profit / $2K biggest day / 30% cap).
-  const c = m.activeConsistencyRule / 100
-  const maxTomorrow = m.activeConsistencyRule > 0 && m.totalProfit > 0
-    ? Math.floor((m.totalProfit * c / (1 - c)) * 0.999) // epsilon to stay strictly under
-    : 99999
   // The consistency ceiling caps the target in every phase, not just
   // 'payout' — totalProfit/biggestDay accrue from entry #1 regardless of
   // phase, so a big pre-lock day still shapes the ratio once it starts
@@ -143,20 +174,31 @@ export function buildCoaching(
   }
 
   // ── Consistency ───────────────────────────────────────────────────────────
+  // Reviewed 2026-09-22 alongside the risk-slider breach marker. Found one
+  // real accuracy bug: the old needMore formula (Math.ceil(biggestDay/c) -
+  // totalProfit) lands exactly ON the cap boundary rather than strictly
+  // under it whenever biggestDay/c happens to be a whole number (e.g. a
+  // $3,000 biggest day at a 30% cap = exactly $10,000) — consistencyOk
+  // requires strictly < the cap, so that boundary value would still read
+  // as blocked. Math.floor(x)+1 is "the next integer strictly greater than
+  // x" for any real x, integer or not, so it no longer has that gap (and
+  // matches Math.ceil's result in the non-integer case, so no other
+  // behavior change).
   if (m.activeConsistencyRule > 0) {
     if (!m.consistencyOk) {
-      const needMore = Math.ceil(m.biggestDay / (m.activeConsistencyRule / 100) - m.totalProfit)
+      const targetTotal = Math.floor(m.biggestDay / (m.activeConsistencyRule / 100)) + 1
+      const needMore = targetTotal - m.totalProfit
       rules.push({
         label:    `Consistency — PAYOUT BLOCKED`,
         value:    `${m.consistencyPct.toFixed(0)}%`,
-        note:     `Biggest day is over ${m.activeConsistencyRule}% of total profit. Need ~${fmt(needMore)} more across multiple sessions to drop below the threshold.`,
+        note:     `Biggest day (${fmt(m.biggestDay)}) is over the ${m.activeConsistencyRule}% cap. Add ~${fmt(needMore)} more in profit — any combination of future winning days — to drop the ratio below the threshold. This also caps your Daily Target above, regardless of the risk slider.`,
         severity: 'alert',
       })
     } else if (m.consistencyPct > m.activeConsistencyRule * 0.7) {
       rules.push({
         label:    'Consistency — Getting Close',
         value:    `${m.consistencyPct.toFixed(0)}%`,
-        note:     `Approaching the ${m.activeConsistencyRule}% wall. Avoid a large single day until you have more total profit cushion.`,
+        note:     `Approaching the ${m.activeConsistencyRule}% wall. Keep any single day under ${fmt(maxTomorrow)} to stay clear of it — the same ceiling the risk slider above is capped by.`,
         severity: 'warn',
       })
     }
