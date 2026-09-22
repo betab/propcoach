@@ -70,6 +70,9 @@ export default function SettingsPage() {
     setSaving(false)
   }
 
+  const isPro   = profile?.plan === 'pro'
+  const isAdmin = !!profile?.role && profile.role !== 'user'
+
   return (
     <div className="max-w-lg">
       <h1 className="font-display text-3xl tracking-[3px] text-white mb-6">SETTINGS</h1>
@@ -128,29 +131,43 @@ export default function SettingsPage() {
         </form>
       </div>
 
-      {/* Plan summary — full billing management lives on its own page */}
+      {/* Plan summary — full billing management lives on its own page.
+          An admin-tier role (see lib/admin-auth.ts) already gets unlimited
+          accounts regardless of profiles.plan (migration 015's
+          check_account_limit trigger, and dashboard/page.tsx's own isAdmin
+          check) — this card used to only ever read profile.plan directly,
+          so an admin whose real billing plan is still 'free' (never
+          actually subscribed) saw a "Free · 1 account max" badge that
+          flatly contradicted their real access. Shown as a distinct
+          "Admin" badge rather than relabeled as "Pro" — that would claim a
+          real subscription that doesn't exist, which matters once you
+          reach Billing (Manage Billing requires a real stripe_customer_id). */}
       <div className="card">
         <div className="stat-label mb-3">Plan</div>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div
               className="text-xs tracking-widest uppercase px-3 py-1.5 rounded border font-semibold"
-              style={profile?.plan === 'pro'
+              style={isPro
                 ? { borderColor: '#00ff88', color: '#00ff88', background: 'rgba(0,255,136,0.1)' }
+                : isAdmin
+                ? { borderColor: '#ffaa00', color: '#ffaa00', background: 'rgba(255,170,0,0.1)' }
                 : { borderColor: '#1a2a40', color: '#5a7a90' }
               }
             >
-              {profile?.plan === 'pro' ? '✓ Pro' : 'Free'}
+              {isPro ? '✓ Pro' : isAdmin ? '✓ Admin' : 'Free'}
             </div>
             <span className="text-xs text-muted">
-              {profile?.plan === 'pro' ? 'Unlimited accounts · All features' : '1 account max'}
+              {isPro ? 'Unlimited accounts · All features'
+                : isAdmin ? 'Unlimited accounts · All features (via admin role)'
+                : '1 account max'}
             </span>
           </div>
           <Link
             href="/settings/billing"
             className="text-[10px] tracking-widest uppercase border border-border text-muted px-3 py-2 rounded hover:border-blue/40 transition-colors"
           >
-            {profile?.plan === 'pro' ? 'Manage Billing' : 'Upgrade'} →
+            {isPro ? 'Manage Billing' : isAdmin ? 'Billing Details' : 'Upgrade'} →
           </Link>
         </div>
       </div>
