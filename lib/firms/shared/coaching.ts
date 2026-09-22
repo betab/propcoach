@@ -11,11 +11,21 @@ import type { AccountConfig, Entry, DerivedMetrics, CoachingRule } from '../type
 function fmt(n: number)  { return (n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString() }
 function fmtS(n: number) { return (n > 0 ? '+$' : n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString() }
 
+// Baseline before the trader's own risk multiplier: a modest % of account
+// size, floored at the firm's own qualifyingDayMin so the target never
+// falls below what that firm/size already defines as a "real" trading day
+// (checked against every active firm's real qualifying_day_min 2026-09-22 —
+// produces sane numbers throughout, $125-$1,500 across Apex/Lucid/Tradeify's
+// real sizes, floor only binding on the smaller Apex sizes). Replaces the
+// old flat $300-for-every-size baseline.
+const BASE_TARGET_PCT = 0.005
+
 export function buildCoaching(
-  config:      AccountConfig,
-  m:           DerivedMetrics,
-  entries:     Entry[],
-  payoutCount: number
+  config:                 AccountConfig,
+  m:                      DerivedMetrics,
+  entries:                Entry[],
+  payoutCount:            number,
+  dailyTargetMultiplier:  number = 1.0
 ): CoachingRule[] {
   const rules: CoachingRule[] = []
 
@@ -24,6 +34,10 @@ export function buildCoaching(
     : m.aboveSafetyNet < 0
     ? 'build'
     : 'payout'
+
+  const rawBase    = config.accountSize * BASE_TARGET_PCT
+  const baseTarget = config.qualifyingDayMin > 0 ? Math.max(rawBase, config.qualifyingDayMin) : rawBase
+  const tieredTarget = Math.round(baseTarget * dailyTargetMultiplier)
 
   // Max profit tomorrow before tripping the consistency wall (activeConsistencyRule
   // accounts for firms like Tradeify Lightning where the cap escalates by payout count).
@@ -40,7 +54,12 @@ export function buildCoaching(
   const maxTomorrow = m.activeConsistencyRule > 0 && m.totalProfit > 0
     ? Math.floor((m.totalProfit * c / (1 - c)) * 0.999) // epsilon to stay strictly under
     : 99999
-  const safeTarget = maxTomorrow < 300 ? maxTomorrow : 300
+  // The consistency ceiling caps the target in every phase, not just
+  // 'payout' — totalProfit/biggestDay accrue from entry #1 regardless of
+  // phase, so a big pre-lock day still shapes the ratio once it starts
+  // being enforced. Capping early is protective even though it isn't
+  // formally gated until 'payout'.
+  const safeTarget = maxTomorrow < tieredTarget ? maxTomorrow : tieredTarget
   const stopLoss   = Math.min(
     m.effectiveDailyLossLimit ?? config.drawdownAmount,
     Math.floor(m.buffer * 0.4)
@@ -61,7 +80,7 @@ export function buildCoaching(
       tNote = `Priority is reaching ${fmt(config.safetyNet)} so your MLL permanently freezes at ${fmt(config.mllLockAt)}. ${fmt(Math.max(0, config.safetyNet - m.currentBalance))} to go. Build it consistently — one bad swing can push the MLL up before you lock it.`
     else if (phase === 'build')
       tNote = `MLL locked ✅ Now build above the ${fmt(config.safetyNet)} Safety Net to unlock payout requests. ${fmt(Math.abs(m.aboveSafetyNet))} remaining.`
-    else if (maxTomorrow < 300)
+    else if (maxTomorrow < tieredTarget)
       tNote = `Your biggest day (${fmt(m.biggestDay)}) is ${m.consistencyPct.toFixed(0)}% of total profit. Staying under ${fmt(safeTarget)} tomorrow keeps you payout-eligible.`
     else
       tNote = `Consistency healthy at ${m.consistencyPct.toFixed(0)}%. This target qualifies the day and keeps you well clear of the ${m.activeConsistencyRule}% cap.`
@@ -70,7 +89,7 @@ export function buildCoaching(
       label: 'Daily Target',
       value: fmt(safeTarget),
       note:  tNote,
-      severity: maxTomorrow < 300 ? 'warn' : 'ok',
+      severity: maxTomorrow < tieredTarget ? 'warn' : 'ok',
     })
   }
 

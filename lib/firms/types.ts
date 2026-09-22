@@ -45,6 +45,7 @@ export interface Account {
   status:         AccountStatus
   payout_count:   number
   daily_loss_limit_enabled: boolean  // trader's one-time opt-in, set at creation — see migration 006
+  daily_target_multiplier: number    // 0.5-2.0, trader-adjustable anytime — see migration 021
   created_at:     string
 }
 
