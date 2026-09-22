@@ -38,7 +38,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <Link href="/admin/proposals" className="hover:text-amber transition-colors">Proposals</Link>
             <Link href="/admin/disclaimers" className="hover:text-amber transition-colors">Disclaimers</Link>
             {isSuperAdmin && (
-              <Link href="/admin/team" className="hover:text-amber transition-colors">Team</Link>
+              <>
+                <Link href="/admin/team" className="hover:text-amber transition-colors">Team</Link>
+                <Link href="/admin/users" className="hover:text-amber transition-colors">Users</Link>
+              </>
             )}
           </nav>
         </div>
