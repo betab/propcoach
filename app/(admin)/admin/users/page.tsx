@@ -75,22 +75,22 @@ export default async function AdminUsersPage({
 
       <div className="card">
         <div className="overflow-x-auto">
-          <table className="w-full text-xs">
+          <table className="w-full text-xs table-fixed">
             <thead>
               <tr className="text-dim text-[10px] uppercase tracking-widest text-left">
-                <th className="pb-2 pr-4">Email</th>
-                <th className="pb-2 pr-4">Name</th>
-                <th className="pb-2 pr-4">Role</th>
-                <th className="pb-2 pr-4">Plan</th>
-                <th className="pb-2 pr-4">Accounts</th>
-                <th className="pb-2"></th>
+                <th className="pb-2 pr-4 w-[30%]">Email</th>
+                <th className="pb-2 pr-4 w-[24%]">Name</th>
+                <th className="pb-2 pr-4 w-[12%]">Role</th>
+                <th className="pb-2 pr-4 w-[10%]">Plan</th>
+                <th className="pb-2 pr-4 w-[10%]">Accounts</th>
+                <th className="pb-2 w-[14%]"></th>
               </tr>
             </thead>
             <tbody>
               {rows.map(p => (
                 <tr key={p.id} className="border-t border-border/50">
-                  <td className="py-3 pr-4 text-white">{p.email || '—'}</td>
-                  <td className="py-3 pr-4 text-muted">{p.display_name || '—'}</td>
+                  <td className="py-3 pr-4 text-white truncate" title={p.email}>{p.email || '—'}</td>
+                  <td className="py-3 pr-4 text-muted truncate" title={p.display_name}>{p.display_name || '—'}</td>
                   <td className="py-3 pr-4">
                     <span className={`text-[9px] px-1.5 py-0.5 rounded border normal-case ${ROLE_STYLE[p.role] || 'border-dim text-dim'}`}>
                       {p.role}
