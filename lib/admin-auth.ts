@@ -27,3 +27,25 @@ export async function requireCanEditRules(supabase: SupabaseClient) {
 
   return { user }
 }
+
+/**
+ * Auth gate for the user-record-editing admin routes (app/api/admin/users/*).
+ * Stricter than requireCanEditRules — editing another trader's profile,
+ * accounts, or entries is super_admin only, same tier as changing roles
+ * (see app/api/admin/team/[userId]/role/route.ts, which does this same
+ * check inline rather than sharing this helper — kept here instead since
+ * user-editing has three routes to cover, not one).
+ */
+export async function requireSuperAdmin(supabase: SupabaseClient) {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
+  }
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (!profile || profile.role !== 'super_admin') {
+    return { error: NextResponse.json({ error: 'Forbidden — super_admin only.' }, { status: 403 }) }
+  }
+
+  return { user }
+}
