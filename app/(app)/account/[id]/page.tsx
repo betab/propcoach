@@ -9,6 +9,7 @@ import { formatDrawdownType } from '@/lib/format'
 import RulesEditor from '@/components/RulesEditor'
 import TradingCalendar from '@/components/TradingCalendar'
 import BalanceChart from '@/components/BalanceChart'
+import DailyTargetSlider from '@/components/DailyTargetSlider'
 
 function fmt(n: number)  { return (n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString() }
 function fmtS(n: number) { return (n > 0 ? '+$' : n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString() }
@@ -74,7 +75,9 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
     // math can produce nonsense (e.g. a negative buffer renders as
     // "Stop Trading If Down -$X"). active-only, same status check the page
     // already uses for its own status badge below.
-    coach   = account.status === 'active' ? buildCoaching(config, m, entries, account.payout_count) : []
+    coach   = account.status === 'active'
+      ? buildCoaching(config, m, entries, account.payout_count, account.daily_target_multiplier)
+      : []
     history = deriveBalanceHistory(config, entries)
   } catch (err) {
     configError = err instanceof Error ? err.message : 'Unknown error resolving this account\'s rules.'
@@ -298,6 +301,8 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
             <Link href={`/account/${account.id}/log`} className="text-green hover:underline">Log today →</Link>
           </div>
         ) : (
+          <>
+          <DailyTargetSlider accountId={account.id} initialValue={account.daily_target_multiplier} />
           <div className="space-y-2">
             {coach.map((rule, i) => {
               const c = rule.severity === 'alert' ? '#ff4444' : rule.severity === 'warn' ? '#ffaa00' : '#00ff88'
@@ -311,6 +316,7 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
               )
             })}
           </div>
+          </>
         )}
       </div>
       </>
