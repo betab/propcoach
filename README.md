@@ -8,7 +8,7 @@ Prop trading account manager — track funded accounts across multiple prop firm
 
 | Layer       | Tool                  |
 |-------------|-----------------------|
-| Frontend    | Next.js 14 (App Router) |
+| Frontend    | Next.js 16 (App Router) |
 | Styling     | Tailwind CSS          |
 | Auth + DB   | Supabase              |
 | Hosting     | Vercel                |
@@ -65,13 +65,15 @@ npm run dev
 
 ## Adding a New Prop Firm
 
-1. Create `lib/firms/{firmid}/config.ts` — account sizes and parameters
-2. Create `lib/firms/{firmid}/rules.ts` — implement the `FirmRules` interface
-3. Add the firm to `lib/firms/index.ts` with `isActive: true`
-4. Add logo to `public/logos/{firmid}.svg`
-5. Run migration if any schema changes needed
+Firm rules are database-backed, not hardcoded — adding a firm is a data-entry task via the admin dashboard (`/admin`, `admin`/`super_admin` role required), no code deploy needed:
 
-That's it — the UI picks it up automatically.
+1. Add the firm and its rule versions/sizes via `/admin/firms/new` (or an approved monitoring proposal — see below)
+2. Add logo to `public/logos/{firmid}.svg`
+3. Toggle `is_active`/`coming_soon` on the firm once its numbers are confirmed
+
+The UI picks it up automatically once the rows exist — no `lib/firms/` code change required. A biweekly automated Routine also researches each active/coming-soon firm's published rules and queues proposed changes in `/admin/proposals` for review; nothing auto-applies.
+
+See `CLAUDE.md` for the full architecture (schema, role model, admin dashboard, monitoring pipeline).
 
 ---
 
@@ -88,19 +90,23 @@ propcoach/
 │   ├── (app)/account/[id]/log     # Log a session
 │   ├── (app)/account/[id]/history # Session history
 │   ├── (app)/settings        # Billing + profile
-│   └── api/                  # API routes
+│   ├── (admin)/admin         # Firm rules, proposals, team, disclaimers (role-gated)
+│   └── api/                  # API routes, incl. api/admin/* and api/cron/*
 ├── lib/
-│   ├── firms/                # Prop firm rules engine
+│   ├── firms/                # Prop firm rules engine (DB-backed, not hardcoded)
 │   │   ├── types.ts          # Shared interfaces
-│   │   ├── index.ts          # Firm registry
-│   │   ├── apex/             # Apex Trader Funding
-│   │   └── topstep/          # TopStep (coming soon)
-│   ├── supabase/             # DB clients
+│   │   ├── index.ts          # Barrel export
+│   │   ├── db.ts             # Resolves rules from the DB by effective date
+│   │   └── shared/           # derive.ts / coaching.ts — firm-agnostic math
+│   ├── supabase/             # DB clients (incl. service-role admin client)
+│   ├── admin-auth.ts         # Shared gate for api/admin/* routes
 │   └── stripe.ts
 ├── supabase/
-│   └── migrations/001_initial.sql
-└── middleware.ts             # Auth protection
+│   └── migrations/           # 001_initial.sql onward — run manually, in order
+└── proxy.ts                  # Auth + admin-role redirect (Next.js middleware)
 ```
+
+See `CLAUDE.md` for full schema, role model, and architecture detail.
 
 ---
 
