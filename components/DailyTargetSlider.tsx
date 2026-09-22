@@ -1,14 +1,14 @@
 'use client'
 // components/DailyTargetSlider.tsx
-// Adjusts an account's Daily Target coaching card up or down — the base
-// target (see lib/firms/shared/coaching.ts) is computed server-side from
-// account size and firm rules, this multiplier just scales it per the
-// trader's own risk preference. Direct client-side Supabase write, same
-// idiom as RulesEditor.tsx (a narrow, low-stakes self-write grant — see
+// Adjusts an account's risk posture — scales both the Daily Target and Stop
+// Trading If Down coaching cards together (see lib/firms/shared/coaching.ts,
+// both computed server-side from account size/firm rules and this
+// multiplier). Direct client-side Supabase write, same idiom as
+// RulesEditor.tsx (a narrow, low-stakes self-write grant — see
 // supabase/migrations/021_daily_target_multiplier.sql) — but unlike
-// RulesEditor, the number this control changes is computed server-side in
+// RulesEditor, the numbers this control changes are computed server-side in
 // the parent page (buildCoaching() runs in account/[id]/page.tsx), so a
-// successful save calls router.refresh() to recompute it, same pattern as
+// successful save calls router.refresh() to recompute them, same pattern as
 // settings/page.tsx's profile edits.
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -68,7 +68,7 @@ export default function DailyTargetSlider({
   return (
     <div className="mb-4">
       <div className="flex items-center justify-between mb-1.5">
-        <div className="text-[10px] tracking-widest uppercase text-dim">Daily Target Risk</div>
+        <div className="text-[10px] tracking-widest uppercase text-dim">Risk Level — Target &amp; Stop</div>
         <div className="text-xs text-muted">
           {saving ? 'Saving…' : (
             <>
