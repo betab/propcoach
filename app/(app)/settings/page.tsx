@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import AvatarUpload from '@/components/AvatarUpload'
+import CancelAccountSection from '@/components/CancelAccountSection'
 
 export default function SettingsPage() {
   const [email,       setEmail]       = useState('')
@@ -153,6 +154,19 @@ export default function SettingsPage() {
           </Link>
         </div>
       </div>
+
+      {/* Cancel My Account — hidden until profile has loaded, since its
+          "not scheduled" state would otherwise flash briefly even if the
+          account actually is scheduled (see settings/page.tsx's own
+          sequenced-fetch comment above on why profile starts null). */}
+      {profile && (
+        <CancelAccountSection
+          scheduledDeletionAt={profile.scheduled_deletion_at ?? null}
+          onChange={scheduledDeletionAt =>
+            setProfile((p: any) => ({ ...p, scheduled_deletion_at: scheduledDeletionAt }))
+          }
+        />
+      )}
     </div>
   )
 }
