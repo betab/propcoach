@@ -26,33 +26,53 @@ export function buildCoaching(
     : 'payout'
 
   // Max profit tomorrow before tripping the consistency wall (activeConsistencyRule
-  // accounts for firms like Tradeify Lightning where the cap escalates by payout count)
-  const maxTomorrow = m.totalProfit > 0
-    ? Math.floor(m.totalProfit * (m.activeConsistencyRule / 100 - 0.001)) - m.biggestDay
+  // accounts for firms like Tradeify Lightning where the cap escalates by payout count).
+  //
+  // Exact solution: if tomorrow's profit x becomes the new biggest day, the
+  // constraint is x/(totalProfit+x) < c (c = cap as a fraction) — solving
+  // gives x < c*totalProfit/(1-c). Previously this computed
+  // totalProfit*(c-eps) - biggestDay, which doesn't account for x also
+  // growing the denominator — that formula was always conservative (never
+  // unsafe) but could understate real headroom several-fold early in an
+  // account's history (verified case: showed $990 vs. a true ~$4,286 on
+  // $10K total profit / $2K biggest day / 30% cap).
+  const c = m.activeConsistencyRule / 100
+  const maxTomorrow = m.activeConsistencyRule > 0 && m.totalProfit > 0
+    ? Math.floor((m.totalProfit * c / (1 - c)) * 0.999) // epsilon to stay strictly under
     : 99999
-  const safeTarget = maxTomorrow > 50 && maxTomorrow < 300 ? maxTomorrow : 300
+  const safeTarget = maxTomorrow < 300 ? maxTomorrow : 300
   const stopLoss   = Math.min(
     m.effectiveDailyLossLimit ?? config.drawdownAmount,
     Math.floor(m.buffer * 0.4)
   )
 
   // ── Target ────────────────────────────────────────────────────────────────
-  let tNote = ''
-  if (phase === 'lock')
-    tNote = `Priority is reaching ${fmt(config.safetyNet)} so your MLL permanently freezes at ${fmt(config.mllLockAt)}. ${fmt(Math.max(0, config.safetyNet - m.currentBalance))} to go. Build it consistently — one bad swing can push the MLL up before you lock it.`
-  else if (phase === 'build')
-    tNote = `MLL locked ✅ Now build above the ${fmt(config.safetyNet)} Safety Net to unlock payout requests. ${fmt(Math.abs(m.aboveSafetyNet))} remaining.`
-  else if (maxTomorrow < 300 && maxTomorrow > 0)
-    tNote = `Your biggest day (${fmt(m.biggestDay)}) is ${m.consistencyPct.toFixed(0)}% of total profit. Staying under ${fmt(safeTarget)} tomorrow keeps you payout-eligible.`
-  else
-    tNote = `Consistency healthy at ${m.consistencyPct.toFixed(0)}%. This target qualifies the day and keeps you well clear of the ${m.activeConsistencyRule}% cap.`
+  // Skip entirely once consistency is already blocking payout (phase ===
+  // 'payout' && !m.consistencyOk) — the separate "Consistency — PAYOUT
+  // BLOCKED" card below already covers that state correctly. Previously
+  // this card's own formula going to zero/negative in that exact
+  // situation fell through to the "healthy" branch, showing a
+  // contradictory "$300, ✓ ok" right next to the other card's alert. The
+  // lock/build phases below never claim anything about consistency, so
+  // they're unaffected by this and always still show.
+  if (phase !== 'payout' || m.consistencyOk) {
+    let tNote = ''
+    if (phase === 'lock')
+      tNote = `Priority is reaching ${fmt(config.safetyNet)} so your MLL permanently freezes at ${fmt(config.mllLockAt)}. ${fmt(Math.max(0, config.safetyNet - m.currentBalance))} to go. Build it consistently — one bad swing can push the MLL up before you lock it.`
+    else if (phase === 'build')
+      tNote = `MLL locked ✅ Now build above the ${fmt(config.safetyNet)} Safety Net to unlock payout requests. ${fmt(Math.abs(m.aboveSafetyNet))} remaining.`
+    else if (maxTomorrow < 300)
+      tNote = `Your biggest day (${fmt(m.biggestDay)}) is ${m.consistencyPct.toFixed(0)}% of total profit. Staying under ${fmt(safeTarget)} tomorrow keeps you payout-eligible.`
+    else
+      tNote = `Consistency healthy at ${m.consistencyPct.toFixed(0)}%. This target qualifies the day and keeps you well clear of the ${m.activeConsistencyRule}% cap.`
 
-  rules.push({
-    label: 'Daily Target',
-    value: fmt(safeTarget),
-    note:  tNote,
-    severity: maxTomorrow > 0 && maxTomorrow < 300 ? 'warn' : 'ok',
-  })
+    rules.push({
+      label: 'Daily Target',
+      value: fmt(safeTarget),
+      note:  tNote,
+      severity: maxTomorrow < 300 ? 'warn' : 'ok',
+    })
+  }
 
   // ── Stop loss ─────────────────────────────────────────────────────────────
   const dllNote = m.effectiveDailyLossLimit

@@ -68,7 +68,13 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
   try {
     config  = await getFirmConfigForAccount(supabase, account)
     m       = derive(config, entries, account.payout_count, lastPayout?.recorded_at ?? null)
-    coach   = buildCoaching(config, m, entries, account.payout_count)
+    // Coaching cards (Daily Target, Stop Trading If Down, etc.) are
+    // forward-looking advice — "here's what to do next." Once an account
+    // is breached or passed there's nothing left to coach toward, and the
+    // math can produce nonsense (e.g. a negative buffer renders as
+    // "Stop Trading If Down -$X"). active-only, same status check the page
+    // already uses for its own status badge below.
+    coach   = account.status === 'active' ? buildCoaching(config, m, entries, account.payout_count) : []
     history = deriveBalanceHistory(config, entries)
   } catch (err) {
     configError = err instanceof Error ? err.message : 'Unknown error resolving this account\'s rules.'
