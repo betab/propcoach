@@ -54,6 +54,9 @@ export default function BillingPage() {
     else { setError(data.error || 'Something went wrong.'); setLoading(false) }
   }
 
+  const isPro   = profile?.plan === 'pro'
+  const isAdmin = !!profile?.role && profile.role !== 'user'
+
   return (
     <div className="max-w-lg">
       <div className="text-xs text-dim tracking-widest mb-1">
@@ -74,15 +77,19 @@ export default function BillingPage() {
         <div className="flex items-center gap-3 mb-4">
           <div
             className="text-xs tracking-widest uppercase px-3 py-1.5 rounded border font-semibold"
-            style={profile?.plan === 'pro'
+            style={isPro
               ? { borderColor: '#00ff88', color: '#00ff88', background: 'rgba(0,255,136,0.1)' }
+              : isAdmin
+              ? { borderColor: '#ffaa00', color: '#ffaa00', background: 'rgba(255,170,0,0.1)' }
               : { borderColor: '#1a2a40', color: '#5a7a90' }
             }
           >
-            {profile?.plan === 'pro' ? '✓ Pro' : 'Free'}
+            {isPro ? '✓ Pro' : isAdmin ? '✓ Admin' : 'Free'}
           </div>
           <span className="text-xs text-muted">
-            {profile?.plan === 'pro' ? 'Unlimited accounts · All features' : '1 account max'}
+            {isPro ? 'Unlimited accounts · All features'
+              : isAdmin ? 'Unlimited accounts · All features (via admin role)'
+              : '1 account max'}
           </span>
         </div>
 
@@ -90,7 +97,7 @@ export default function BillingPage() {
           <div className="text-xs text-danger bg-danger/10 border border-danger/30 rounded p-3 mb-4">{error}</div>
         )}
 
-        {profile?.plan === 'pro' ? (
+        {isPro ? (
           <div>
             <p className="text-xs text-muted mb-3">
               Manage your subscription — update your card, view invoices, or cancel — through Stripe's secure
@@ -106,6 +113,20 @@ export default function BillingPage() {
           </div>
         ) : (
           <div>
+            {isAdmin && (
+              // No real Stripe customer exists for an admin who hasn't
+              // actually subscribed — the portal button above requires
+              // stripe_customer_id and would 400 ("No billing account
+              // found for this user yet.") if shown here instead. Full
+              // access is already granted by the admin role itself
+              // (migration 015's check_account_limit trigger), no
+              // subscription needed — this is informational only, the
+              // upgrade cards below still work if they want a real one too.
+              <p className="text-xs text-muted mb-4">
+                Your admin role already grants unlimited accounts and every feature — no subscription needed.
+                Upgrading below is optional (e.g. to test the paid flow); your admin access stays either way.
+              </p>
+            )}
             <div className="text-xs text-dim tracking-widest uppercase mb-3">Upgrade to Pro</div>
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-bg2 border border-border rounded p-4">
