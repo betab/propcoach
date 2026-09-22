@@ -1,0 +1,37 @@
+-- 020_account_deletion.sql
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Self-service "Cancel My Account" — soft-delete with a grace period.
+--
+-- scheduled_deletion_at IS NULL   → not scheduled for deletion (normal state)
+-- scheduled_deletion_at <= now()  → picked up by the sweep job
+--                                   (app/api/cron/account-deletion-sweep, a
+--                                   later PR) and hard-deleted via
+--                                   admin.auth.admin.deleteUser(), which
+--                                   cascades through profiles/accounts/
+--                                   entries/payouts exactly like the
+--                                   already-shipped admin "Delete User"
+--                                   support tool (see 001_initial.sql's FK
+--                                   cascades, and app/api/admin/users/
+--                                   [userId]/delete/route.ts).
+--
+-- Deliberately NOT added to the self-writable GRANT list from
+-- 004_lock_down_profile_columns.sql (unlike display_name/avatar_url/
+-- trading_rules/stripe_customer_id). Setting this column is what will
+-- eventually cause an irreversible full-account hard delete — a materially
+-- higher-consequence write than any of the other self-writable columns,
+-- closer in kind to plan/role/stripe_subscription_id (also deliberately
+-- left off that GRANT list). POST /api/account/cancel and POST
+-- /api/account/reactivate (a later PR) authenticate the caller with the
+-- normal per-request client (getUser(), same as every other non-admin
+-- route) but perform the actual write to this column with the
+-- service-role client, always scoped to that same authenticated caller's
+-- own id — never a client-supplied id. This closes off a bug/XSS/
+-- malicious-extension path that could otherwise write this column
+-- directly from the browser, bypassing both the confirmation UX and the
+-- "cancel Stripe first" ordering guarantee the cancel route depends on.
+--
+-- Run this in: Supabase Dashboard → SQL Editor.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+ALTER TABLE profiles
+  ADD COLUMN scheduled_deletion_at TIMESTAMPTZ;
