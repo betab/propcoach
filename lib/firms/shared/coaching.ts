@@ -2,9 +2,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Coaching-card generation. Firm-agnostic, moved here verbatim from the old
 // lib/firms/apex/rules.ts. The internal thresholds (0.7 "getting close"
-// multiplier, 2.5x big-day multiplier, 0.4 stop-loss fraction) stay as code
-// constants shared across all firms, not DB fields, per the firm-management
-// milestone plan.
+// multiplier, 2.5x big-day multiplier) stay as code constants shared across
+// all firms, not DB fields, per the firm-management milestone plan. Daily
+// Target and Stop Trading If Down both scale together with the trader's
+// per-account daily_target_multiplier (0.5x-2.0x) — see the constants and
+// comments where each is used below.
 // ─────────────────────────────────────────────────────────────────────────────
 import type { AccountConfig, Entry, DerivedMetrics, CoachingRule } from '../types'
 
@@ -19,6 +21,11 @@ function fmtS(n: number) { return (n > 0 ? '+$' : n < 0 ? '-$' : '$') + Math.abs
 // real sizes, floor only binding on the smaller Apex sizes). Replaces the
 // old flat $300-for-every-size baseline.
 const BASE_TARGET_PCT = 0.005
+
+// Stop Trading If Down's buffer fraction — 0.4 is the multiplier's 1.0x
+// (neutral/unchanged) point; see the risk-slider comment where it's used.
+const STOP_LOSS_BASE_FRACTION = 0.4
+const STOP_LOSS_MAX_BUFFER_FRACTION = 0.8
 
 export function buildCoaching(
   config:                 AccountConfig,
@@ -60,9 +67,21 @@ export function buildCoaching(
   // being enforced. Capping early is protective even though it isn't
   // formally gated until 'payout'.
   const safeTarget = maxTomorrow < tieredTarget ? maxTomorrow : tieredTarget
-  const stopLoss   = Math.min(
+
+  // Stop Trading If Down moves with the same risk slider as Daily Target —
+  // 0.4 (the old fixed fraction) is the multiplier's neutral 1.0x point, so
+  // a trader who never touches the slider sees the exact same number as
+  // before. Conservative (0.5x) tightens to 20% of buffer, aggressive
+  // (2.0x) loosens to 80%. STOP_LOSS_MAX_BUFFER_FRACTION is a hard ceiling
+  // independent of the slider — even at 2.0x this never recommends past
+  // 80% of buffer, so there's always a real cushion left before the MLL
+  // itself would be hit; effectiveDailyLossLimit/drawdownAmount is a
+  // separate, harder ceiling this never touches — the firm's own real DLL
+  // is a rule, not a preference, and the multiplier never scales past it.
+  const bufferFraction = Math.min(STOP_LOSS_BASE_FRACTION * dailyTargetMultiplier, STOP_LOSS_MAX_BUFFER_FRACTION)
+  const stopLoss = Math.min(
     m.effectiveDailyLossLimit ?? config.drawdownAmount,
-    Math.floor(m.buffer * 0.4)
+    Math.floor(m.buffer * bufferFraction)
   )
 
   // ── Target ────────────────────────────────────────────────────────────────
