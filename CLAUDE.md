@@ -31,9 +31,11 @@ app/
   api/
     accounts, accounts/[id]/{status,payout}
     entries/[id]/delete
+    account/cancel, account/reactivate    — self-service "Cancel My Account" (Settings), see §Account cancellation below
     admin/…                               — mirrors the (admin) pages, all mutation routes, incl. admin/users/*
     cron/firm-rules-ingest                — monitoring Routine POSTs findings here
     cron/firm-source-fetch                — allowlisted fetch-proxy for firm research
+    cron/account-deletion-sweep           — daily Routine hard-deletes accounts past their grace period
     stripe/{checkout,portal,webhook}
 proxy.ts                                  — Next.js middleware (best-effort redirect only, see guard pattern below)
 ```
@@ -64,7 +66,7 @@ Admin-tier users are also exempt from the free-plan 1-account limit (migration 0
 
 ---
 
-## Database schema (current state, generated from migrations 001–019)
+## Database schema (current state, generated from migrations 001–020)
 
 Postgres via Supabase. **No migration runner exists** — every migration is run manually in the Supabase SQL Editor, in order, by the user. `supabase/migrations/*.sql` is the real source of truth; this section is a snapshot for fast reference (see "Keeping this file current").
 
@@ -73,8 +75,8 @@ Static reference data. `id` (text PK, e.g. `'apex'`), `name`, `logo_url`, `is_ac
 RLS: public read; admin-only insert/update/delete.
 
 ### `profiles`
-One row per `auth.users`, auto-created on signup (trigger). `id` (PK = auth uid), `display_name`, `plan` (`free`/`pro`), `stripe_customer_id`, `stripe_subscription_id`, `role`, `avatar_url`, `trading_rules`, timestamps.
-RLS: users can only see/touch their own row. **Column-level lockdown** (migration 004, closing a real self-promotion exploit): blanket `UPDATE` is revoked from `authenticated`; only `display_name`, `stripe_customer_id`, `avatar_url`, `trading_rules` are directly self-writable. `role`, `plan`, `stripe_subscription_id` require the service-role client (role: admin team route; plan/subscription: Stripe webhook).
+One row per `auth.users`, auto-created on signup (trigger). `id` (PK = auth uid), `display_name`, `plan` (`free`/`pro`), `stripe_customer_id`, `stripe_subscription_id`, `role`, `avatar_url`, `trading_rules`, `scheduled_deletion_at` (migration 020 — self-service account cancellation, see §Account cancellation below), timestamps.
+RLS: users can only see/touch their own row. **Column-level lockdown** (migration 004, closing a real self-promotion exploit): blanket `UPDATE` is revoked from `authenticated`; only `display_name`, `stripe_customer_id`, `avatar_url`, `trading_rules` are directly self-writable. `role`, `plan`, `stripe_subscription_id`, **and `scheduled_deletion_at`** require the service-role client (role: admin team route; plan/subscription: Stripe webhook; `scheduled_deletion_at`: `/api/account/{cancel,reactivate}`, which authenticate the caller normally but always write scoped to their own id — see the migration's own comment for why this one is treated as high-consequence like `plan`/`role` rather than added to the self-writable grant list).
 
 ### `accounts`
 One funded account per trader. `id`, `user_id`, `firm_id`, `nickname`, `account_number`, `size`, `drawdown_type` (`trailing_eod`/`trailing_intraday`/`static`), `version`, `start_date`, `is_active`, `status` (`active`/`breached`/`passed`), `payout_count`, `daily_loss_limit_enabled`, `rules`, timestamps.
@@ -120,6 +122,19 @@ RLS: public read (active only); admin read/write/update.
 
 ### Storage
 `avatars` bucket (public read). Write policies restrict to a user's own folder (`{user_id}/avatar.{ext}`, first path segment = own `auth.uid()`).
+
+---
+
+## Account cancellation ("Cancel My Account")
+
+Self-service, soft-delete with a grace period — shipped 2026-09-22 (betab/propcoach#49→#52). `lib/account-deletion.ts` holds `GRACE_PERIOD_DAYS` (14, a plain constant — no env var precedent in this codebase for tunable business durations) and `computeScheduledDeletionAt()`.
+
+- **`POST /api/account/cancel`** — normal per-request auth, acts only on the caller's own id. Blocks self-cancel only if the caller is the *sole* `super_admin` (live count, not just role — avoids an unrecoverable admin lockout without over-restricting plain `admin`/`admin_readonly` or a `super_admin` when others exist). Cancels Stripe (`cancel_at_period_end: true`, branching on `stripe_subscription_id` rather than `plan`, since a past_due subscription can leave `plan='free'` while still populated) **before** scheduling deletion — never schedules if that Stripe call fails.
+- **`POST /api/account/reactivate`** — undo. Clears `scheduled_deletion_at` first (always), then best-effort un-cancels Stripe, surfacing a warning rather than failing the whole request if that part fails.
+- **`components/CancelAccountSection.tsx`** (in Settings) — two states: before scheduling (type `CANCEL` + native `confirm()`, same two-layer shape as the admin `DeleteUserButton`), after scheduling (persistent "scheduled for {date}" + Undo). Deliberately no app-wide gating/banner during the grace period — nothing is destroyed until the sweep runs, so continued normal use is harmless.
+- **`POST /api/cron/account-deletion-sweep`** — same bearer-secret pattern as `firm-rules-ingest` (env var `ACCOUNT_DELETION_SWEEP_SECRET`, fail-closed 503 if unset), meant for a daily externally-scheduled Routine. Per overdue row: cancels any Stripe subscription **immediately** (not at-period-end — the grace period bounds app access, not Stripe's own billing period, which can run far longer) then `auth.admin.deleteUser()`.
+
+**Not yet done, infra step**: the daily sweep Routine itself isn't configured yet — needs `ACCOUNT_DELETION_SWEEP_SECRET` set in Vercel and a `create_trigger` Routine pointed at the sweep endpoint, same one-time manual step as the existing firm-rules monitoring Routines.
 
 ---
 
@@ -179,9 +194,11 @@ The admin route group (`(admin)`) uses this same palette but with amber-forward 
 
 ## Where the plan lives
 
-`/root/.claude/plans/velvety-jumping-waterfall.md` — architecture reference for the DB-backed firm rules system and the Super Admin user-record editing feature (both now fully shipped and verified against real data) plus the separate not-yet-scoped reporting-dashboard milestone (user stats, bulk account actions) — that one's still to be planned.
+`/root/.claude/plans/velvety-jumping-waterfall.md` — architecture reference for the DB-backed firm rules system, the Super Admin user-record editing feature, the admin Delete User support tool, and the self-service "Cancel My Account" feature (all now fully shipped) plus the separate not-yet-scoped reporting-dashboard milestone (user stats, bulk account actions) — that one's still to be planned.
 
 PR7's read paths (users list, user detail, account resolution incl. real Apex/Lucid accounts, firm/version dropdowns, entries) and its write path (entry edit, captured-and-reverted against a real entry) were both verified directly against production data on 2026-09-22. The delete-entry route was not live-tested (no clean revert for a real record) but shares the exact ownership-check-then-delete shape already proven safe elsewhere in the codebase (`app/api/entries/[id]/delete/route.ts`). The click-through-as-super_admin UI flow itself was not tested (no login credentials for a real user) — only its underlying auth gate (confirmed redirects when unauthenticated) and mutation logic (confirmed via the same DB calls the routes make) were.
+
+**Cancel My Account (betab/propcoach#49→#52, 2026-09-22)**: sandbox-verified only (auth-gate 401s/503s, `tsc`/`next build` clean) — not yet verified against real data. Real-data verification needs Stripe **test-mode** keys and a disposable test subscription for the cancel/reactivate routes, and — per this doc's own carried-forward rule — the sweep job's actual hard-delete must never be run against any real user's row, live or test, without a disposable throwaway auth user created specifically for that purpose.
 
 ---
 
