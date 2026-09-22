@@ -2,7 +2,7 @@
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import { getFirmConfigForAccount, derive, deriveBalanceHistory, buildCoaching } from '@/lib/firms'
+import { getFirmConfigForAccount, derive, deriveBalanceHistory, buildCoaching, getConsistencyBreachMultiplier } from '@/lib/firms'
 import type { Entry, AccountConfig, DerivedMetrics, CoachingRule } from '@/lib/firms/types'
 import type { BalanceHistoryPoint } from '@/lib/firms/shared/derive'
 import { formatDrawdownType } from '@/lib/format'
@@ -66,6 +66,7 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
   let coach: CoachingRule[] = []
   let history: BalanceHistoryPoint[] = []
   let configError: string | null = null
+  let consistencyBreachMultiplier: number | null = null
   try {
     config  = await getFirmConfigForAccount(supabase, account)
     m       = derive(config, entries, account.payout_count, lastPayout?.recorded_at ?? null)
@@ -79,6 +80,12 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
       ? buildCoaching(config, m, entries, account.payout_count, account.daily_target_multiplier)
       : []
     history = deriveBalanceHistory(config, entries)
+    // Where on the risk slider the trader's raw target would first exceed
+    // the live consistency ceiling — the slider's breach marker. Computed
+    // regardless of status/entries so it's available whenever the slider
+    // itself renders (entries.length > 0, active accounts only — same
+    // gate the slider render below uses).
+    consistencyBreachMultiplier = getConsistencyBreachMultiplier(config, m)
   } catch (err) {
     configError = err instanceof Error ? err.message : 'Unknown error resolving this account\'s rules.'
   }
@@ -302,7 +309,11 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
           </div>
         ) : (
           <>
-          <DailyTargetSlider accountId={account.id} initialValue={account.daily_target_multiplier} />
+          <DailyTargetSlider
+            accountId={account.id}
+            initialValue={account.daily_target_multiplier}
+            consistencyBreachMultiplier={consistencyBreachMultiplier}
+          />
           <div className="space-y-2">
             {coach.map((rule, i) => {
               const c = rule.severity === 'alert' ? '#ff4444' : rule.severity === 'warn' ? '#ffaa00' : '#00ff88'

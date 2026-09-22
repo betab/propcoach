@@ -20,4 +20,4 @@ export {
 } from './db'
 
 export { derive, deriveBalanceHistory } from './shared/derive'
-export { buildCoaching } from './shared/coaching'
+export { buildCoaching, getConsistencyBreachMultiplier } from './shared/coaching'
