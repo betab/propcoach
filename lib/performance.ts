@@ -13,7 +13,7 @@
 // no N+1 — both entries and payouts carry user_id directly).
 // ─────────────────────────────────────────────────────────────────────────────
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { getFirmConfigForAccount, derive, getPhase } from './firms'
+import { getFirmConfigForAccount, derive, deriveBalanceHistory, getPhase } from './firms'
 import type { Phase } from './firms'
 import type { Account, AccountConfig, DerivedMetrics, Entry, Payout, FirmMeta } from './firms/types'
 
@@ -282,4 +282,120 @@ export function deriveConsistencyWatch(
   }
 
   return points
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The 4 new metrics approved via the metric-library mockup (2026-09-23), plus
+// the 2 rail tiles already implied by the original Combined_Home mockup
+// (Avg Days to Lock, Largest Drawdown) but never actually wired in.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Average days from an account's start_date to the day its trailing MLL
+// first locked (deriveBalanceHistory's own per-entry `minimum` reaching
+// config.mllLockAt — the exact same threshold derive.ts's mllLocked uses),
+// across every active account that has locked. Scoped to active accounts
+// only (needs firm-config resolution, same scope as the other config-
+// dependent rail tiles like MLL Locked/Consistency) — unlike the other new
+// metrics below, which are config-free and so can span all entries,
+// archived accounts included.
+export function computeAvgDaysToLock(
+  ok: AccountWithMetrics[],
+  entriesByAccount: Map<string, Entry[]>
+): number | null {
+  const daysToLock: number[] = []
+
+  for (const { account, config } of ok) {
+    const entries = entriesByAccount.get(account.id) ?? []
+    const history = deriveBalanceHistory(config, entries)
+    const lockPoint = history.find(p => p.minimum >= config.mllLockAt)
+    if (lockPoint) {
+      const days = Math.round(
+        (new Date(lockPoint.date).getTime() - new Date(account.start_date).getTime()) / 86_400_000
+      )
+      daysToLock.push(days)
+    }
+  }
+
+  if (daysToLock.length === 0) return null
+  return Math.round(daysToLock.reduce((s, d) => s + d, 0) / daysToLock.length)
+}
+
+// The single worst (most negative) logged day's P&L, portfolio-wide, across
+// every account (active + archived — a real historical low doesn't stop
+// counting once its account is archived). Config-free: just raw entries.
+export function computeLargestDrawdown(allEntries: Entry[]): number {
+  const losses = allEntries.filter(e => e.pnl < 0).map(e => e.pnl)
+  return losses.length ? Math.min(...losses) : 0
+}
+
+// Shared by the streak/avg/trend/best-worst metrics below — one row per
+// calendar date with that date's total P&L summed across every account.
+function dailyTotals(allEntries: Entry[]): { date: string; total: number }[] {
+  const byDate = new Map<string, number>()
+  for (const e of allEntries) byDate.set(e.date, (byDate.get(e.date) ?? 0) + e.pnl)
+  return Array.from(byDate.entries())
+    .map(([date, total]) => ({ date, total }))
+    .sort((a, b) => a.date.localeCompare(b.date))
+}
+
+export interface StreakInfo { days: number; direction: 'win' | 'loss' }
+
+// Consecutive winning or losing days, portfolio-wide, counting back from the
+// most recent logged day. A flat (exactly $0) most-recent day breaks any
+// streak rather than extending one, same as it does nowhere — there's no
+// "flat" direction to report.
+export function computeCurrentStreak(allEntries: Entry[]): StreakInfo | null {
+  const days = dailyTotals(allEntries)
+  if (days.length === 0) return null
+
+  const lastSign = Math.sign(days[days.length - 1].total)
+  if (lastSign === 0) return null
+
+  let count = 0
+  for (let i = days.length - 1; i >= 0; i--) {
+    if (Math.sign(days[i].total) !== lastSign) break
+    count++
+  }
+  return { days: count, direction: lastSign > 0 ? 'win' : 'loss' }
+}
+
+// Average P&L per logged day, portfolio-wide — a steadier number than any
+// single day's swing, since multiple accounts' entries on the same date are
+// summed into one day first (dailyTotals), not averaged per-entry.
+export function computeAvgDailyPnl(allEntries: Entry[]): number {
+  const days = dailyTotals(allEntries)
+  return days.length ? days.reduce((s, d) => s + d.total, 0) / days.length : 0
+}
+
+export interface WinRateTrendPoint { date: string; winRatePct: number }
+
+// Rolling win-rate line: for each logged day, the % of the trailing
+// `windowDays` calendar-days-with-entries (not calendar days — weekends/
+// no-log days don't dilute the window) that were net winning days. Fewer
+// than `windowDays` of history so far → whatever's available, same
+// "partial window at the start" behavior a rolling average always has.
+export function deriveWinRateTrend(allEntries: Entry[], windowDays = 7): WinRateTrendPoint[] {
+  const days = dailyTotals(allEntries)
+  return days.map((d, i) => {
+    const window = days.slice(Math.max(0, i - windowDays + 1), i + 1)
+    const wins = window.filter(w => w.total > 0).length
+    return { date: d.date, winRatePct: Math.round((wins / window.length) * 100) }
+  })
+}
+
+export interface BestWorstDay { date: string; pnl: number }
+export interface BestWorstWeekly { best: BestWorstDay | null; worst: BestWorstDay | null }
+
+// The single best and worst logged day, portfolio-wide, within the trailing
+// `windowDays` (default 7 — "weekly", per the approved mockup) days that
+// actually have entries. Not a calendar-week boundary — a rolling window,
+// consistent with deriveWinRateTrend's own "rolling" framing.
+export function deriveBestWorstDayWeekly(allEntries: Entry[], windowDays = 7): BestWorstWeekly {
+  const days = dailyTotals(allEntries)
+  const recent = days.slice(-windowDays)
+  if (recent.length === 0) return { best: null, worst: null }
+
+  const best  = recent.reduce((a, b) => (b.total > a.total ? b : a))
+  const worst = recent.reduce((a, b) => (b.total < a.total ? b : a))
+  return { best: { date: best.date, pnl: best.total }, worst: { date: worst.date, pnl: worst.total } }
 }

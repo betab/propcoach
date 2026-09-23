@@ -9,6 +9,8 @@ import type { Account, Entry, Payout } from '@/lib/firms/types'
 import {
   loadActiveAccountMetrics, classifyOrbs, computePortfolioSummary, deriveDailyPortfolioPnl,
   computeLeftRailStats, computeArchiveSummary, buildPayoutLog, deriveConsistencyWatch,
+  computeAvgDaysToLock, computeLargestDrawdown, computeCurrentStreak, computeAvgDailyPnl,
+  deriveWinRateTrend, deriveBestWorstDayWeekly,
 } from '@/lib/performance'
 import PageHeader from '@/components/PageHeader'
 import LeftRail, { type StatTile } from '@/components/LeftRail'
@@ -17,6 +19,12 @@ import PnlWaveformPanel from '@/components/SignalPanels/PnlWaveformPanel'
 import ConsistencyWatchPanel from '@/components/SignalPanels/ConsistencyWatchPanel'
 import MllProgressPanel from '@/components/SignalPanels/MllProgressPanel'
 import PayoutLog from '@/components/SignalPanels/PayoutLog'
+import WinRateTrendPanel from '@/components/SignalPanels/WinRateTrendPanel'
+import BestWorstDayPanel from '@/components/SignalPanels/BestWorstDayPanel'
+
+function fmtSigned(n: number) {
+  return (n < 0 ? '-$' : '+$') + Math.abs(Math.round(n)).toLocaleString()
+}
 
 export default async function HomePage() {
   const supabase = await createClient()
@@ -57,6 +65,12 @@ export default async function HomePage() {
   const archiveSummary    = computeArchiveSummary(archivedAccounts)
   const payoutLog         = buildPayoutLog(payouts, accounts, firms).slice(0, 10)
   const consistencyWatch  = deriveConsistencyWatch(ok, entriesByAccount)
+  const avgDaysToLock     = computeAvgDaysToLock(ok, entriesByAccount)
+  const largestDrawdown   = computeLargestDrawdown(entries)
+  const currentStreak     = computeCurrentStreak(entries)
+  const avgDailyPnl       = computeAvgDailyPnl(entries)
+  const winRateTrend      = deriveWinRateTrend(entries)
+  const bestWorstWeekly   = deriveBestWorstDayWeekly(entries)
 
   const lockingCount = railStats.totalActiveCount - railStats.mllLockedCount
 
@@ -75,6 +89,18 @@ export default async function HomePage() {
           ? `OK · ${railStats.consistencyCloseCount} CLOSE`
           : 'OK',
       color: railStats.consistencyBlockedCount > 0 ? '#ff4444' : railStats.consistencyCloseCount > 0 ? '#ffaa00' : '#00ff88',
+    },
+    { label: 'Avg Days to Lock', value: avgDaysToLock != null ? `${avgDaysToLock} Days` : '—' },
+    { label: 'Largest Drawdown', value: largestDrawdown < 0 ? fmtSigned(largestDrawdown) : '—', color: '#ff4444' },
+    {
+      label: 'Current Streak',
+      value: currentStreak ? `${currentStreak.days}d ${currentStreak.direction === 'win' ? 'Win' : 'Loss'}` : '—',
+      color: currentStreak ? (currentStreak.direction === 'win' ? '#00ff88' : '#ff4444') : undefined,
+    },
+    {
+      label: 'Avg Daily P&L',
+      value: entries.length > 0 ? fmtSigned(avgDailyPnl) : '—',
+      color: avgDailyPnl >= 0 ? '#00ff88' : '#ff4444',
     },
   ]
 
@@ -114,6 +140,8 @@ export default async function HomePage() {
           <PnlWaveformPanel data={dailyPnl} />
           <ConsistencyWatchPanel data={consistencyWatch} />
           <MllProgressPanel accounts={ok} />
+          <WinRateTrendPanel data={winRateTrend} />
+          <BestWorstDayPanel data={bestWorstWeekly} />
         </div>
         <div className="mt-5">
           <PayoutLog entries={payoutLog} />
