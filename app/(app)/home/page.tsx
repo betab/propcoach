@@ -108,14 +108,14 @@ export default async function HomePage() {
         </div>
       </div>
 
-      <div className="mt-10">
-        <div className="text-xs text-dim tracking-[3px] uppercase mb-4">The Signal — Detail</div>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="mt-4">
+        <div className="text-[10px] text-dim tracking-[3px] uppercase pt-4 mb-4 border-t border-border">The Signal — Detail</div>
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           <PnlWaveformPanel data={dailyPnl} />
           <ConsistencyWatchPanel data={consistencyWatch} />
           <MllProgressPanel accounts={ok} />
         </div>
-        <div className="mt-4">
+        <div className="mt-5">
           <PayoutLog entries={payoutLog} />
         </div>
       </div>

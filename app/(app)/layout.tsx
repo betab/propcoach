@@ -59,7 +59,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <SignOutButton />
         </div>
       </header>
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
+      <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6">
         {children}
       </main>
       <DisclaimerFooter disclaimers={disclaimers} />

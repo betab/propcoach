@@ -1,18 +1,31 @@
 // components/OrbitalHero.tsx
-// The orbital-command hero for Performance Home. Node positions are pure
-// trig — no client JS needed, this stays a server component. The radar
-// sweep and pulse glow are CSS-only animations (app/globals.css).
+// The orbital-command hero for Performance Home. Fully fluid: the scene's
+// aspect ratio is locked via CSS (aspect-ratio, matching the approved
+// mockup's own ~1180:560 proportions) and every ring/node position is a
+// percentage of the container, not a fixed pixel box — so it actually
+// fills the space next to LeftRail instead of sitting in a fixed-size box
+// with empty gutters around it. No client JS needed: aspect-ratio is a
+// pure CSS layout primitive, so this stays a server component.
+//
+// The math: a point at "radius" R (in %-of-width units) and angle θ sits
+// at dx% = R·cosθ (already %-of-width, correct as-is) and
+// dy% = R·sinθ·ASPECT_RATIO (converted to %-of-height, since the
+// container's height is width/ASPECT_RATIO — see polar() below). Sizing
+// individual circular elements (rings, core, nodes) is simpler: giving
+// each one `width: X%` + `aspectRatio: '1 / 1'` makes its own rendered
+// height match its rendered width automatically, regardless of the outer
+// container's own aspect ratio.
 import Link from 'next/link'
 import type { OrbGroup, PortfolioSummary, ArchiveSummary } from '@/lib/performance'
 import type { FirmMeta } from '@/lib/firms/types'
 
-const WIDTH  = 900
-const HEIGHT = 520
-const CENTER_X = WIDTH / 2
-const CENTER_Y = HEIGHT / 2
-const CORE_R  = 85
-const INNER_R = 150
-const OUTER_R = 230
+const ASPECT_W = 1180
+const ASPECT_H = 560
+const ASPECT_RATIO = ASPECT_W / ASPECT_H
+
+const CORE_R_PCT  = 8   // % of container width
+const INNER_R_PCT = 13
+const OUTER_R_PCT = 21
 const INNER_CAPACITY = 6
 
 type NodeStatus = 'payout' | 'locking' | 'warning' | 'breach' | 'steady' | 'archive'
@@ -26,26 +39,23 @@ const STATUS_COLOR: Record<NodeStatus, string> = {
   archive: '#3a6a90',
 }
 
-function polar(cx: number, cy: number, r: number, angleDeg: number) {
+function polar(rPct: number, angleDeg: number) {
   const rad = (angleDeg - 90) * (Math.PI / 180)
-  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) }
+  return {
+    leftPct: 50 + rPct * Math.cos(rad),
+    topPct:  50 + rPct * Math.sin(rad) * ASPECT_RATIO,
+  }
 }
 
-function layout(count: number): { x: number; y: number }[] {
+function layout(count: number): { leftPct: number; topPct: number }[] {
   if (count === 0) return []
   if (count <= 4) {
-    return Array.from({ length: count }, (_, i) =>
-      polar(CENTER_X, CENTER_Y, INNER_R, (360 / count) * i)
-    )
+    return Array.from({ length: count }, (_, i) => polar(INNER_R_PCT, (360 / count) * i))
   }
   const innerCount = Math.min(INNER_CAPACITY, Math.ceil(count / 2))
   const outerCount  = count - innerCount
-  const inner = Array.from({ length: innerCount }, (_, i) =>
-    polar(CENTER_X, CENTER_Y, INNER_R, (360 / innerCount) * i)
-  )
-  const outer = Array.from({ length: outerCount }, (_, i) =>
-    polar(CENTER_X, CENTER_Y, OUTER_R, (360 / outerCount) * i + 180 / outerCount)
-  )
+  const inner = Array.from({ length: innerCount }, (_, i) => polar(INNER_R_PCT, (360 / innerCount) * i))
+  const outer = Array.from({ length: outerCount }, (_, i) => polar(OUTER_R_PCT, (360 / outerCount) * i + 180 / outerCount))
   return [...inner, ...outer]
 }
 
@@ -88,6 +98,19 @@ function ringGradient(pct: number, color: string) {
   return `conic-gradient(${color} ${clamped}%, #1a2a40 ${clamped}%)`
 }
 
+// Circular element helper — width:X% + aspect-ratio:1 makes the rendered
+// height match the rendered width regardless of the container's own ratio.
+function circleStyle(widthPct: number, leftPct: number, topPct: number): React.CSSProperties {
+  return {
+    position: 'absolute',
+    width: `${widthPct}%`,
+    aspectRatio: '1 / 1',
+    left: `${leftPct}%`,
+    top: `${topPct}%`,
+    transform: 'translate(-50%, -50%)',
+  }
+}
+
 export default function OrbitalHero({
   groups,
   portfolioSummary,
@@ -108,32 +131,30 @@ export default function OrbitalHero({
   const pnlSign  = portfolioSummary.lifetimePnl >= 0 ? '+' : '−'
 
   return (
-    <div className="relative bg-black rounded-xl border border-border overflow-hidden" style={{ width: '100%', maxWidth: WIDTH, height: HEIGHT, margin: '0 auto' }}>
+    <div
+      className="relative bg-black rounded-xl border border-border overflow-hidden w-full"
+      style={{ aspectRatio: `${ASPECT_W} / ${ASPECT_H}` }}
+    >
       {/* radar sweep */}
       <div
         className="orbital-spin absolute pointer-events-none"
-        style={{
-          left: CENTER_X - OUTER_R, top: CENTER_Y - OUTER_R,
-          width: OUTER_R * 2, height: OUTER_R * 2, borderRadius: '50%',
-          background: 'conic-gradient(from 0deg, rgba(0,255,136,0.16), transparent 35%)',
-        }}
-      />
+        style={circleStyle(OUTER_R_PCT * 2, 50, 50)}
+      >
+        <div
+          className="absolute inset-0 rounded-full"
+          style={{ background: 'conic-gradient(from 0deg, rgba(0,255,136,0.16), transparent 35%)' }}
+        />
+      </div>
 
       {/* ring guides */}
-      <div
-        className="absolute rounded-full border border-border/60 pointer-events-none"
-        style={{ left: CENTER_X - INNER_R, top: CENTER_Y - INNER_R, width: INNER_R * 2, height: INNER_R * 2 }}
-      />
-      <div
-        className="absolute rounded-full border border-border/40 pointer-events-none"
-        style={{ left: CENTER_X - OUTER_R, top: CENTER_Y - OUTER_R, width: OUTER_R * 2, height: OUTER_R * 2 }}
-      />
+      <div className="rounded-full border border-border/60 pointer-events-none" style={circleStyle(INNER_R_PCT * 2, 50, 50)} />
+      <div className="rounded-full border border-border/40 pointer-events-none" style={circleStyle(OUTER_R_PCT * 2, 50, 50)} />
 
       {/* portfolio P&L core */}
       <div
-        className="absolute flex flex-col items-center justify-center rounded-full border-2"
+        className="flex flex-col items-center justify-center rounded-full border-2"
         style={{
-          left: CENTER_X - CORE_R, top: CENTER_Y - CORE_R, width: CORE_R * 2, height: CORE_R * 2,
+          ...circleStyle(CORE_R_PCT * 2, 50, 50),
           background: 'radial-gradient(circle, #0d1420 0%, #080c11 80%)',
           borderColor: pnlColor,
         }}
@@ -158,7 +179,8 @@ export default function OrbitalHero({
           <div
             className={`absolute flex flex-col items-center justify-center rounded-full text-center ${status === 'payout' ? 'pulse-green' : ''}`}
             style={{
-              left: pos.x - R, top: pos.y - R, width: R * 2, height: R * 2,
+              left: `${pos.leftPct}%`, top: `${pos.topPct}%`, transform: 'translate(-50%, -50%)',
+              width: R * 2, height: R * 2,
               background: ringGradient(ringPct, color),
               padding: 3,
             }}
@@ -187,7 +209,7 @@ export default function OrbitalHero({
           href="/dashboard/archived"
           className="absolute flex flex-col items-center justify-center rounded-full bg-bg2 border text-center hover:opacity-90 transition-opacity"
           style={{
-            left: positions[groups.length].x - 40, top: positions[groups.length].y - 40,
+            left: `${positions[groups.length].leftPct}%`, top: `${positions[groups.length].topPct}%`, transform: 'translate(-50%, -50%)',
             width: 80, height: 80, borderColor: STATUS_COLOR.archive,
           }}
         >
@@ -196,6 +218,10 @@ export default function OrbitalHero({
           <div className="text-[8px] text-muted">{archiveSummary.passed}P · {archiveSummary.breached}B</div>
         </Link>
       )}
+
+      <div className="absolute bottom-2 right-3 text-[9px] text-dim tracking-wide max-w-[240px] text-right leading-tight pointer-events-none">
+        Ring = consistency %. Glow = account state. Archive orb is every past account, combined. Tap any orb to open it.
+      </div>
     </div>
   )
 }
