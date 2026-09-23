@@ -9,6 +9,7 @@
 // comments where each is used below.
 // ─────────────────────────────────────────────────────────────────────────────
 import type { AccountConfig, Entry, DerivedMetrics, CoachingRule } from '../types'
+import { getPhase } from './derive'
 
 function fmt(n: number)  { return (n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString() }
 function fmtS(n: number) { return (n > 0 ? '+$' : n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString() }
@@ -82,11 +83,7 @@ export function buildCoaching(
 ): CoachingRule[] {
   const rules: CoachingRule[] = []
 
-  const phase = !m.mllLocked
-    ? 'lock'
-    : m.aboveSafetyNet < 0
-    ? 'build'
-    : 'payout'
+  const phase = getPhase(m)
 
   const { baseTarget, maxTomorrow: maxTomorrowOrNull } = computeRiskMath(config, m)
   const maxTomorrow  = maxTomorrowOrNull ?? 99999 // sentinel: no live ceiling, never binds below

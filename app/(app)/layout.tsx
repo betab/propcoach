@@ -27,10 +27,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen">
       <header className="bg-bg2 border-b border-border px-6 py-3 flex items-center justify-between sticky top-0 z-10">
         <div className="flex items-center gap-5">
-          <Link href="/dashboard" className="font-display text-xl tracking-[3px] text-green">
+          <Link href="/home" className="font-display text-xl tracking-[3px] text-green">
             PROPCOACH
           </Link>
           <nav className="flex items-center gap-3 sm:gap-4 text-xs text-muted">
+            <Link href="/home" className="hover:text-green transition-colors">Home</Link>
             <Link href="/dashboard" className="hover:text-green transition-colors">Accounts</Link>
             {isAdmin && (
               <Link href="/admin" className="hover:text-amber transition-colors">Admin</Link>

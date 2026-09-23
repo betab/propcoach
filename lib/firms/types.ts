@@ -26,7 +26,7 @@ export interface Entry {
 export interface Payout {
   id:          string
   account_id:  string
-  amount:      number
+  amount:      number | null  // null = not recorded — payouts.amount is nullable (001_initial.sql) and optional at entry (see app/api/accounts/[id]/payout/route.ts)
   recorded_at: string
 }
 
