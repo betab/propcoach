@@ -18,8 +18,8 @@ export default function LeftRail({
 }) {
   return (
     <div className="relative w-[172px] shrink-0">
-      <div className="overflow-y-auto pr-1" style={{ height }}>
-        <div className="flex flex-col gap-3">
+      <div className="overflow-y-auto pr-1 pt-6" style={{ height }}>
+        <div className="flex flex-col gap-3.5">
           {tiles.map((tile, i) => (
             <div key={i} className="bg-bg2 border border-border rounded-lg px-4 py-3">
               <div className="stat-label">{tile.label}</div>

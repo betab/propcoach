@@ -37,7 +37,7 @@ export default function PageHeader({
       <div className="flex items-center gap-3 flex-wrap">
         {actions}
         {showAddMetric && (
-          <span className="text-[10px] tracking-widest uppercase border border-border text-green px-4 py-1.5 rounded-full">
+          <span className="text-[10px] tracking-widest uppercase border border-border bg-bg2 text-green px-4 py-1.5 rounded-full">
             + Add Metric
           </span>
         )}
