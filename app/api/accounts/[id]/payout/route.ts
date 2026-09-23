@@ -12,10 +12,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .from('accounts').select('*').eq('id', id).eq('user_id', user.id).single()
   if (!account) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
+  // Amount is optional — a trader recording the payout quickly without the
+  // exact figure yet shouldn't be blocked. Anything that isn't a valid
+  // non-negative number (blank, non-numeric, negative) is stored as null,
+  // same as before this field existed. Number('') is 0, not NaN, so a
+  // blank/whitespace-only field is checked explicitly rather than left to
+  // fall through Number() — otherwise leaving the field empty would
+  // silently record a misleading $0.00 payout instead of "not recorded."
+  const formData = await req.formData()
+  const amountInput = formData.get('amount')
+  const amountTrimmed = typeof amountInput === 'string' ? amountInput.trim() : ''
+  const amountNum = amountTrimmed === '' ? NaN : Number(amountTrimmed)
+  const amount = Number.isFinite(amountNum) && amountNum >= 0 ? amountNum : null
+
   // Increment payout count and record payout
   const [, payoutResult] = await Promise.all([
     supabase.from('accounts').update({ payout_count: account.payout_count + 1 }).eq('id', id),
-    supabase.from('payouts').insert({ account_id: id, user_id: user.id, amount: null }),
+    supabase.from('payouts').insert({ account_id: id, user_id: user.id, amount }),
   ])
 
   return NextResponse.redirect(new URL(`/account/${id}`, req.url))
