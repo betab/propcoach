@@ -1,0 +1,22 @@
+-- 025_enable_rls_profiles.sql
+-- ─────────────────────────────────────────────────────────────────────────────
+-- CRITICAL fix, applied out-of-band 2026-09-23 in response to a Supabase
+-- security advisory: `profiles` had RLS *policies* defined (from
+-- 001_initial.sql — "Users can view own profile" / "Users can update own
+-- profile") but Row Level Security enforcement itself was OFF at the table
+-- level. Policies only take effect once RLS is enabled — with it off,
+-- PostgREST/GraphQL served every row to any caller with the anon key,
+-- policies or not. How/when RLS got toggled off isn't known (not something
+-- any migration in this repo did — 001_initial.sql already runs
+-- ENABLE ROW LEVEL SECURITY, so this was disabled some other way, outside
+-- the tracked migration history).
+--
+-- This migration exists to bring the tracked migration history back in sync
+-- with the live database (already fixed directly via the Supabase MCP
+-- connector, per this project's established emergency pattern) — running it
+-- again is a safe no-op if RLS is already on.
+--
+-- Run this in: Supabase Dashboard → SQL Editor.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
