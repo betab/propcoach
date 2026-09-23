@@ -307,10 +307,18 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
                 <div className="text-xs text-muted mt-1">Payout #{account.payout_count + 1} max</div>
               </div>
               {m.payoutEligible && (
-                <form action={`/api/accounts/${account.id}/payout`} method="POST" className="ml-auto">
+                <form action={`/api/accounts/${account.id}/payout`} method="POST" className="ml-auto flex items-center gap-2">
+                  <input
+                    type="number"
+                    name="amount"
+                    step="0.01"
+                    min="0"
+                    placeholder="Amount (optional)"
+                    className="input w-36 text-xs py-2"
+                  />
                   <button
                     type="submit"
-                    className="text-[10px] tracking-widest uppercase border border-green text-green px-3 py-2 rounded hover:bg-green/10 transition-colors font-mono"
+                    className="text-[10px] tracking-widest uppercase border border-green text-green px-3 py-2 rounded hover:bg-green/10 transition-colors font-mono whitespace-nowrap"
                   >
                     Record Payout ✓
                   </button>
