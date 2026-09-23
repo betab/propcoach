@@ -5,6 +5,7 @@ import { getFirmConfigForAccount, derive, getAllFirms } from '@/lib/firms'
 import type { Account, Entry, FirmMeta } from '@/lib/firms/types'
 import { formatDrawdownType } from '@/lib/format'
 import RulesEditor from '@/components/RulesEditor'
+import PageHeader from '@/components/PageHeader'
 
 function fmt(n: number) {
   return (n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString()
@@ -134,37 +135,38 @@ export default async function DashboardPage() {
         emptyHint="No rules set yet — add reminders you want to see every time you check your accounts."
       />
 
-      {/* Page header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="font-display text-3xl tracking-[3px] text-white">MY ACCOUNTS</h1>
-          <p className="text-xs text-muted mt-1">
+      <PageHeader
+        section="ACCOUNTS"
+        subtitle={
+          <>
             {accounts?.length || 0} account{accounts?.length !== 1 ? 's' : ''}
             {!isPro && !isAdmin && ' · Free plan (1 account max)'}
             {!isPro && isAdmin && ' · Admin — unlimited accounts'}
-          </p>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          <Link href="/dashboard/archived" className="btn">
-            🗄 Archived
-          </Link>
-          {canAdd ? (
-            <Link
-              href="/dashboard/new-account"
-              className="btn border-green text-green hover:bg-green/10"
-            >
-              + Add Account
+          </>
+        }
+        actions={
+          <>
+            <Link href="/dashboard/archived" className="btn">
+              🗄 Archived
             </Link>
-          ) : (
-            <Link
-              href="/settings/billing"
-              className="btn border-amber text-amber hover:bg-amber/10"
-            >
-              Upgrade for More
-            </Link>
-          )}
-        </div>
-      </div>
+            {canAdd ? (
+              <Link
+                href="/dashboard/new-account"
+                className="btn border-green text-green hover:bg-green/10"
+              >
+                + Add Account
+              </Link>
+            ) : (
+              <Link
+                href="/settings/billing"
+                className="btn border-amber text-amber hover:bg-amber/10"
+              >
+                Upgrade for More
+              </Link>
+            )}
+          </>
+        }
+      />
 
       {/* Account grid */}
       {accounts && accounts.length > 0 ? (

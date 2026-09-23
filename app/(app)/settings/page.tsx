@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import AvatarUpload from '@/components/AvatarUpload'
 import CancelAccountSection from '@/components/CancelAccountSection'
+import PageHeader from '@/components/PageHeader'
 
 export default function SettingsPage() {
   const [email,       setEmail]       = useState('')
@@ -75,7 +76,7 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-lg">
-      <h1 className="font-display text-3xl tracking-[3px] text-white mb-6">SETTINGS</h1>
+      <PageHeader section="SETTINGS" />
 
       {/* Profile */}
       <div className="card mb-4">

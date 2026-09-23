@@ -29,8 +29,8 @@ body {
 /* Utility classes used across components */
 .font-display { font-family: 'Bebas Neue', sans-serif; }
 
-/* The "PROPCOACH//X" header cursor (PerformanceHeader.tsx) — a shared
-   pattern meant to roll out to other page headers later. */
+/* The "PROPCOACH//X" header cursor (components/PageHeader.tsx) — shared
+   across every app/(app) page header. */
 @keyframes cursor-blink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
 .cursor-blink { animation: cursor-blink 1s step-end infinite; }
 
