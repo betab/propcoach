@@ -1,0 +1,24 @@
+-- 022_self_service_archive.sql
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Self-service account archiving. accounts.is_active already exists
+-- (001_initial.sql) and is already wired into the dashboard's active-accounts
+-- query (app/(app)/dashboard/page.tsx) and the free-plan account-limit
+-- trigger (check_account_limit()) — it was just never exposed to the trader,
+-- only to super_admin via the admin user-editor
+-- (app/api/admin/users/[userId]/accounts/[accountId]/route.ts). No new
+-- column needed.
+--
+-- Low-stakes and fully reversible (unlike scheduled_deletion_at, which
+-- eventually triggers an irreversible hard delete and is deliberately kept
+-- out of the self-write grant list — see 020_account_deletion.sql's own
+-- comment) — toggling is_active only hides/unhides the trader's own account
+-- and, as a side effect, frees or reclaims their own free-plan slot. Same
+-- category as status/payout_count, added the same additive-GRANT way those
+-- were in 013_rules.sql. The "only archive a breached/passed account, never
+-- an active one" rule is enforced in app/api/accounts/[id]/archive/route.ts,
+-- not here — same pattern as status/route.ts's own VALID_STATUSES check.
+--
+-- Run this in: Supabase Dashboard → SQL Editor.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+GRANT UPDATE (is_active) ON accounts TO authenticated;
