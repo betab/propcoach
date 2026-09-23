@@ -115,6 +115,11 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
                 {account.status}
               </span>
             )}
+            {!account.is_active && (
+              <span className="ml-3 align-middle text-xs tracking-widest uppercase px-2 py-1 rounded border border-dim text-dim bg-dim/10">
+                🗄 Archived
+              </span>
+            )}
           </h1>
           <p className="text-xs text-muted mt-0.5">
             {config?.firmName || account.firm_id} · {formatDrawdownType(account.drawdown_type)} · <span className="font-bold uppercase text-white">{account.version}</span>
@@ -145,10 +150,27 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
               </form>
             </>
           ) : (
-            <form action={`/api/accounts/${account.id}/status`} method="POST">
-              <input type="hidden" name="status" value="active" />
-              <button type="submit" className="btn">↺ Reactivate</button>
-            </form>
+            <>
+              <form action={`/api/accounts/${account.id}/status`} method="POST">
+                <input type="hidden" name="status" value="active" />
+                <button type="submit" className="btn">↺ Reactivate</button>
+              </form>
+              {account.is_active ? (
+                <form action={`/api/accounts/${account.id}/archive`} method="POST">
+                  <input type="hidden" name="active" value="false" />
+                  <button type="submit" className="btn" title="Move to Archived Accounts — you can restore it anytime">
+                    🗄 Archive
+                  </button>
+                </form>
+              ) : (
+                <form action={`/api/accounts/${account.id}/archive`} method="POST">
+                  <input type="hidden" name="active" value="true" />
+                  <button type="submit" className="btn border-blue text-blue hover:bg-blue/10">
+                    ↺ Restore from Archive
+                  </button>
+                </form>
+              )}
+            </>
           )}
         </div>
       </div>

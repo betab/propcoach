@@ -144,21 +144,26 @@ export default async function DashboardPage() {
             {!isPro && isAdmin && ' · Admin — unlimited accounts'}
           </p>
         </div>
-        {canAdd ? (
-          <Link
-            href="/dashboard/new-account"
-            className="btn border-green text-green hover:bg-green/10"
-          >
-            + Add Account
+        <div className="flex gap-2 flex-wrap">
+          <Link href="/dashboard/archived" className="btn">
+            🗄 Archived
           </Link>
-        ) : (
-          <Link
-            href="/settings/billing"
-            className="btn border-amber text-amber hover:bg-amber/10"
-          >
-            Upgrade for More
-          </Link>
-        )}
+          {canAdd ? (
+            <Link
+              href="/dashboard/new-account"
+              className="btn border-green text-green hover:bg-green/10"
+            >
+              + Add Account
+            </Link>
+          ) : (
+            <Link
+              href="/settings/billing"
+              className="btn border-amber text-amber hover:bg-amber/10"
+            >
+              Upgrade for More
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Account grid */}
