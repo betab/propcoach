@@ -10,6 +10,7 @@ import RulesEditor from '@/components/RulesEditor'
 import TradingCalendar from '@/components/TradingCalendar'
 import BalanceChart from '@/components/BalanceChart'
 import DailyTargetSlider from '@/components/DailyTargetSlider'
+import ArchiveButton from '@/components/ArchiveButton'
 
 function fmt(n: number)  { return (n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString() }
 function fmtS(n: number) { return (n > 0 ? '+$' : n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString() }
@@ -150,27 +151,25 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
               </form>
             </>
           ) : (
-            <>
-              <form action={`/api/accounts/${account.id}/status`} method="POST">
-                <input type="hidden" name="status" value="active" />
-                <button type="submit" className="btn">↺ Reactivate</button>
-              </form>
-              {account.is_active ? (
-                <form action={`/api/accounts/${account.id}/archive`} method="POST">
-                  <input type="hidden" name="active" value="false" />
-                  <button type="submit" className="btn" title="Move to Archived Accounts — you can restore it anytime">
-                    🗄 Archive
-                  </button>
-                </form>
-              ) : (
-                <form action={`/api/accounts/${account.id}/archive`} method="POST">
-                  <input type="hidden" name="active" value="true" />
-                  <button type="submit" className="btn border-blue text-blue hover:bg-blue/10">
-                    ↺ Restore from Archive
-                  </button>
-                </form>
-              )}
-            </>
+            <form action={`/api/accounts/${account.id}/status`} method="POST">
+              <input type="hidden" name="status" value="active" />
+              <button type="submit" className="btn">↺ Reactivate</button>
+            </form>
+          )}
+          {/* Archive/Restore — available regardless of status (see
+              app/api/accounts/[id]/archive/route.ts's own comment on why
+              'passed' isn't treated as "done" the way 'breached' is). Not
+              nested in the status branch above: a still-active account can
+              be archived too, per that same decision. */}
+          {account.is_active ? (
+            <ArchiveButton accountId={account.id} title="Move to Archived Accounts — you can restore it anytime" />
+          ) : (
+            <form action={`/api/accounts/${account.id}/archive`} method="POST">
+              <input type="hidden" name="active" value="true" />
+              <button type="submit" className="btn border-blue text-blue hover:bg-blue/10">
+                ↺ Restore from Archive
+              </button>
+            </form>
           )}
         </div>
       </div>

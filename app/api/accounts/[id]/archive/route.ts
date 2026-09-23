@@ -15,17 +15,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   const { data: account } = await supabase
-    .from('accounts').select('id, status').eq('id', id).eq('user_id', user.id).single()
+    .from('accounts').select('id').eq('id', id).eq('user_id', user.id).single()
   if (!account) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  // Archiving (active -> inactive) is only ever offered once an account is
-  // no longer active (breached/passed) — the UI only renders the Archive
-  // button in that state (account/[id]/page.tsx). Enforced here too since
-  // this is a plain form POST, not something RLS alone gates.
-  if (active === 'false' && account.status === 'active') {
-    return NextResponse.json({ error: 'Cannot archive an active account' }, { status: 400 })
-  }
-
+  // Archiving is allowed regardless of status. Originally restricted to
+  // breached/passed accounts, but 'passed' doesn't mean "done" the way
+  // 'breached' does — a funded account can keep earning payouts
+  // indefinitely, so status shouldn't gate whether the trader can retire
+  // it. The client-side confirm() in ArchiveButton.tsx is the guard
+  // against accidentally hiding a still-active account, not this route.
   await supabase.from('accounts').update({ is_active: active === 'true' }).eq('id', id)
 
   // Land wherever the account now actually shows: unarchiving puts it back
