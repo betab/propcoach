@@ -28,7 +28,7 @@ export async function proxy(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const { pathname } = request.nextUrl
 
-  if (!user && (pathname.startsWith('/dashboard') || pathname.startsWith('/admin'))) {
+  if (!user && (pathname.startsWith('/home') || pathname.startsWith('/dashboard') || pathname.startsWith('/admin'))) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
@@ -36,7 +36,7 @@ export async function proxy(request: NextRequest) {
 
   if (user && (pathname === '/login' || pathname === '/signup')) {
     const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
+    url.pathname = '/home'
     return NextResponse.redirect(url)
   }
 
@@ -47,7 +47,7 @@ export async function proxy(request: NextRequest) {
     const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
     if (!profile || profile.role === 'user') {
       const url = request.nextUrl.clone()
-      url.pathname = '/dashboard'
+      url.pathname = '/home'
       return NextResponse.redirect(url)
     }
   }

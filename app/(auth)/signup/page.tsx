@@ -23,7 +23,7 @@ export default function SignupPage() {
       options: { data: { display_name: name } }
     })
     if (error) { setError(error.message); setLoading(false); return }
-    router.push('/dashboard')
+    router.push('/home')
     router.refresh()
   }
 

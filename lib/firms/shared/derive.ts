@@ -27,6 +27,15 @@ function computeMLL(config: AccountConfig, peakBalance: number): number {
 
 function clamp(v: number, lo: number, hi: number) { return Math.max(lo, Math.min(hi, v)) }
 
+// Extracted from coaching.ts's own inline calc 2026-09-23 so Performance
+// Home's cross-account consolidation grouping (lib/performance.ts, which
+// groups accounts by firm+size+phase) can never drift from what
+// buildCoaching() itself treats as the account's phase.
+export type Phase = 'lock' | 'build' | 'payout'
+export function getPhase(m: Pick<DerivedMetrics, 'mllLocked' | 'aboveSafetyNet'>): Phase {
+  return !m.mllLocked ? 'lock' : m.aboveSafetyNet < 0 ? 'build' : 'payout'
+}
+
 // Shared by derive() and deriveBalanceHistory() so the day-by-day chart data
 // and the current-state metrics can never quietly disagree on this formula.
 function computeEffectiveDailyLossLimit(config: AccountConfig, peak: number, mllLocked: boolean): number | null {
