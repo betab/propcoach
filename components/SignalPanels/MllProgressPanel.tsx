@@ -11,17 +11,17 @@ function fmt(n: number) {
 export default function MllProgressPanel({ accounts }: { accounts: AccountWithMetrics[] }) {
   if (accounts.length === 0) {
     return (
-      <div className="card">
+      <div className="card h-[320px] flex flex-col">
         <div className="stat-label mb-3">MLL Lock Progress</div>
-        <div className="text-xs text-muted py-8 text-center">No active accounts.</div>
+        <div className="flex-1 flex items-center justify-center text-xs text-muted text-center">No active accounts.</div>
       </div>
     )
   }
 
   return (
-    <div className="card">
+    <div className="card h-[320px] flex flex-col">
       <div className="stat-label mb-3">MLL Lock Progress</div>
-      <div className="flex flex-col gap-3">
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-3">
         {accounts.map(({ account, config, metrics }) => (
           <Link key={account.id} href={`/account/${account.id}`} className="block hover:opacity-90 transition-opacity">
             <div className="flex justify-between mb-1">

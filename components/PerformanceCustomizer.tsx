@@ -27,15 +27,17 @@ import type { StatTile } from '@/lib/performance'
 const SAVE_DEBOUNCE_MS = 400
 const RAIL_HEIGHT = 512
 
-// A 2×3 dot-grid grip icon — inline SVG rather than a Unicode glyph
-// (Braille-pattern chars render as tofu boxes in this app's fonts).
-function GripIcon({ color = '#3a4a5a' }: { color?: string }) {
+// A 2×2 dot-grid grip icon — inline SVG rather than a Unicode glyph
+// (Braille-pattern chars render as tofu boxes in this app's fonts). Light
+// grey (muted token) and only 4 dots — 6 in a taller 2×3 grid ran tall
+// enough to overlap a 2-line-wrapped tile label (e.g. "Payouts to Date").
+function GripIcon({ color = '#5a7a90' }: { color?: string }) {
   return (
-    <svg width="10" height="16" viewBox="0 0 10 16" style={{ cursor: 'grab', flexShrink: 0 }} aria-hidden="true">
-      {[2, 8, 14].map(y => (
+    <svg width="8" height="10" viewBox="0 0 8 10" style={{ cursor: 'grab', flexShrink: 0 }} aria-hidden="true">
+      {[2, 8].map(y => (
         <g key={y}>
           <circle cx="2" cy={y} r="1.5" fill={color} />
-          <circle cx="8" cy={y} r="1.5" fill={color} />
+          <circle cx="6" cy={y} r="1.5" fill={color} />
         </g>
       ))}
     </svg>

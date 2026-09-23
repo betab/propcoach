@@ -12,17 +12,17 @@ function fmtDate(iso: string) {
 export default function PayoutLog({ entries }: { entries: PayoutLogEntry[] }) {
   if (entries.length === 0) {
     return (
-      <div className="card">
+      <div className="card h-[320px] flex flex-col">
         <div className="stat-label mb-3">Payout Log</div>
-        <div className="text-xs text-muted py-8 text-center">No payouts recorded yet.</div>
+        <div className="flex-1 flex items-center justify-center text-xs text-muted text-center">No payouts recorded yet.</div>
       </div>
     )
   }
 
   return (
-    <div className="card">
+    <div className="card h-[320px] flex flex-col">
       <div className="stat-label mb-3">Payout Log</div>
-      <div className="flex flex-col divide-y divide-border">
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col divide-y divide-border">
         {entries.map((p, i) => (
           <div key={i} className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
             <div>

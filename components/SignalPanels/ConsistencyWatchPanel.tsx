@@ -39,9 +39,9 @@ export default function ConsistencyWatchPanel({ data }: { data: ConsistencyWatch
 
   if (rows.length < 2) {
     return (
-      <div className="card">
+      <div className="card h-[320px] flex flex-col">
         <div className="stat-label mb-3">Consistency Watch</div>
-        <div className="text-xs text-muted py-8 text-center">No accounts with an active consistency rule yet.</div>
+        <div className="flex-1 flex items-center justify-center text-xs text-muted text-center">No accounts with an active consistency rule yet.</div>
       </div>
     )
   }
@@ -50,9 +50,10 @@ export default function ConsistencyWatchPanel({ data }: { data: ConsistencyWatch
   const yMax = Math.ceil((maxVal + 10) / 10) * 10
 
   return (
-    <div className="card">
+    <div className="card h-[320px] flex flex-col">
       <div className="stat-label mb-3">Consistency Watch</div>
-      <ResponsiveContainer width="100%" height={220}>
+      <div className="flex-1 min-h-0">
+      <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={rows} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
           <CartesianGrid stroke="#1a2332" strokeWidth={1} vertical={false} />
           <ReferenceArea y1={100} y2={yMax} fill="#ff4444" fillOpacity={0.08} />
@@ -86,6 +87,7 @@ export default function ConsistencyWatchPanel({ data }: { data: ConsistencyWatch
           />
         </ComposedChart>
       </ResponsiveContainer>
+      </div>
     </div>
   )
 }

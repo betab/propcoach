@@ -45,6 +45,15 @@ body {
 }
 .pulse-green { animation: pulseGreen 2s ease-in-out infinite; }
 
+/* OrbitalHero.tsx's portfolio P&L core — a slower ambient heartbeat glow,
+   colored to match the core's own border (green/red by P&L sign). */
+@keyframes pulseDanger {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.55); }
+  50%      { box-shadow: 0 0 0 10px rgba(255, 68, 68, 0); }
+}
+.pulse-core-green  { animation: pulseGreen 3s ease-in-out infinite; }
+.pulse-core-danger { animation: pulseDanger 3s ease-in-out infinite; }
+
 @layer components {
   .card {
     @apply bg-bg3 border border-border rounded-lg p-5;
