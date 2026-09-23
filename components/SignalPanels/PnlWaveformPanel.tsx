@@ -37,9 +37,9 @@ export default function PnlWaveformPanel({ data }: { data: DailyPortfolioPoint[]
 
   if (rows.length < 2) {
     return (
-      <div className="card">
+      <div className="card h-[320px] flex flex-col">
         <div className="stat-label mb-3">P&L Waveform</div>
-        <div className="text-xs text-muted py-8 text-center">Not enough logged days yet to chart a trend.</div>
+        <div className="flex-1 flex items-center justify-center text-xs text-muted text-center">Not enough logged days yet to chart a trend.</div>
       </div>
     )
   }
@@ -48,9 +48,10 @@ export default function PnlWaveformPanel({ data }: { data: DailyPortfolioPoint[]
   const lineColor = last >= 0 ? '#00ff88' : '#ff4444'
 
   return (
-    <div className="card">
+    <div className="card h-[320px] flex flex-col">
       <div className="stat-label mb-3">P&L Waveform</div>
-      <ResponsiveContainer width="100%" height={220}>
+      <div className="flex-1 min-h-0">
+      <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={rows} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
           <defs>
             <linearGradient id="pnlWaveformFill" x1="0" y1="0" x2="0" y2="1">
@@ -89,6 +90,7 @@ export default function PnlWaveformPanel({ data }: { data: DailyPortfolioPoint[]
           />
         </ComposedChart>
       </ResponsiveContainer>
+      </div>
     </div>
   )
 }

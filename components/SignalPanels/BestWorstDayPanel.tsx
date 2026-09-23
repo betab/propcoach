@@ -15,17 +15,17 @@ function fmtDate(iso: string) {
 export default function BestWorstDayPanel({ data }: { data: BestWorstWeekly }) {
   if (!data.best || !data.worst) {
     return (
-      <div className="card">
+      <div className="card h-[320px] flex flex-col">
         <div className="stat-label mb-3">Best/Worst Day (Weekly)</div>
-        <div className="text-xs text-muted py-8 text-center">No logged days in the last week yet.</div>
+        <div className="flex-1 flex items-center justify-center text-xs text-muted text-center">No logged days in the last week yet.</div>
       </div>
     )
   }
 
   return (
-    <div className="card">
+    <div className="card h-[320px] flex flex-col">
       <div className="stat-label mb-3">Best/Worst Day (Weekly)</div>
-      <div className="flex gap-5">
+      <div className="flex-1 flex items-center gap-5">
         <div className="flex-1">
           <div className="text-[10px] text-dim tracking-widest uppercase mb-1">Best</div>
           <div className="font-display text-xl text-green">{fmt(data.best.pnl)}</div>

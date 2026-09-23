@@ -150,9 +150,15 @@ export default function OrbitalHero({
       <div className="rounded-full border border-border/60 pointer-events-none" style={circleStyle(INNER_R_PCT * 2, 50, 50)} />
       <div className="rounded-full border border-border/40 pointer-events-none" style={circleStyle(OUTER_R_PCT * 2, 50, 50)} />
 
-      {/* portfolio P&L core */}
+      {/* portfolio P&L core — a slow ambient heartbeat glow, colored to
+          match the border (green/red by P&L sign), same pulse mechanism
+          individual payout-ready orbs use (see .pulse-green in globals.css),
+          just slower and tied to the portfolio's own sign rather than a
+          single account's payout eligibility. */}
       <div
-        className="flex flex-col items-center justify-center rounded-full border-2"
+        className={`flex flex-col items-center justify-center rounded-full border-2 ${
+          portfolioSummary.lifetimePnl >= 0 ? 'pulse-core-green' : 'pulse-core-danger'
+        }`}
         style={{
           ...circleStyle(CORE_R_PCT * 2, 50, 50),
           background: 'radial-gradient(circle, #0d1420 0%, #080c11 80%)',

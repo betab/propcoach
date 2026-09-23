@@ -34,9 +34,9 @@ export default function WinRateTrendPanel({ data }: { data: WinRateTrendPoint[] 
 
   if (rows.length < 2) {
     return (
-      <div className="card">
+      <div className="card h-[320px] flex flex-col">
         <div className="stat-label mb-3">Win Rate Trend</div>
-        <div className="text-xs text-muted py-8 text-center">Not enough logged days yet to chart a trend.</div>
+        <div className="flex-1 flex items-center justify-center text-xs text-muted text-center">Not enough logged days yet to chart a trend.</div>
       </div>
     )
   }
@@ -45,12 +45,13 @@ export default function WinRateTrendPanel({ data }: { data: WinRateTrendPoint[] 
   const lineColor = last >= 50 ? '#00ff88' : '#ffaa00'
 
   return (
-    <div className="card">
+    <div className="card h-[320px] flex flex-col">
       <div className="flex items-baseline justify-between mb-3">
         <div className="stat-label">Win Rate Trend</div>
         <div className="font-display text-lg" style={{ color: lineColor }}>{last}%</div>
       </div>
-      <ResponsiveContainer width="100%" height={220}>
+      <div className="flex-1 min-h-0">
+      <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={rows} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
           <CartesianGrid stroke="#1a2332" strokeWidth={1} vertical={false} />
           <ReferenceLine y={50} stroke="#1a2a40" strokeDasharray="2 4" />
@@ -84,6 +85,7 @@ export default function WinRateTrendPanel({ data }: { data: WinRateTrendPoint[] 
           />
         </ComposedChart>
       </ResponsiveContainer>
+      </div>
     </div>
   )
 }
