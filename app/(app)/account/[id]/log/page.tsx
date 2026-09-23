@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { getFirmConfigForAccount } from '@/lib/firms'
 import type { Entry, Account, AccountConfig } from '@/lib/firms/types'
+import PageHeader from '@/components/PageHeader'
 
 function fmt(n: number)  { return (n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString() }
 function fmtS(n: number) { return (n > 0 ? '+$' : n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString() }
@@ -114,21 +115,21 @@ export default function LogSessionPage() {
 
   return (
     <div className="max-w-md mx-auto">
-      <div className="mb-6">
-        <div className="text-xs text-dim tracking-widest mb-1">
-          <Link href="/dashboard" className="hover:text-green transition-colors">MY ACCOUNTS</Link>
-          <span className="mx-2">›</span>
-          <Link href={`/account/${accountId}`} className="hover:text-green transition-colors">
-            {account.nickname || `${(account.size/1000).toFixed(0)}K Account`}
-          </Link>
-          <span className="mx-2">›</span>
-          <span>Log Session</span>
-        </div>
-        <h1 className="font-display text-3xl tracking-[3px] text-white">LOG SESSION</h1>
-        <p className="text-xs text-muted mt-1">
-          Current balance: <span className="text-green">{fmt(currentBalance)}</span>
-        </p>
-      </div>
+      <PageHeader
+        breadcrumb={
+          <>
+            <Link href="/dashboard" className="hover:text-green transition-colors">MY ACCOUNTS</Link>
+            <span className="mx-2">›</span>
+            <Link href={`/account/${accountId}`} className="hover:text-green transition-colors">
+              {account.nickname || `${(account.size/1000).toFixed(0)}K Account`}
+            </Link>
+            <span className="mx-2">›</span>
+            <span>Log Session</span>
+          </>
+        }
+        section="LOG SESSION"
+        subtitle={<>Current balance: <span className="text-green">{fmt(currentBalance)}</span></>}
+      />
 
       <div className="card">
         <form onSubmit={handleSubmit} className="space-y-4">

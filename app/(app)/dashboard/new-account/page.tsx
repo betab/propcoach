@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { getAllFirms, getFirmVersions, getAvailableSizes, getCurrentFirmConfig } from '@/lib/firms'
 import type { FirmMeta, FirmVersion, DrawdownType } from '@/lib/firms/types'
+import PageHeader from '@/components/PageHeader'
 
 // Versions sharing a version_group (e.g. Tradeify Select's select_daily/
 // select_flex, both group: 'Select') render as one "family" — like Growth
@@ -155,10 +156,7 @@ export default function NewAccountPage() {
 
   return (
     <div className="max-w-lg mx-auto">
-      <div className="mb-6">
-        <h1 className="font-display text-3xl tracking-[3px] text-white">ADD ACCOUNT</h1>
-        <p className="text-xs text-muted mt-1">Connect a funded account to start tracking</p>
-      </div>
+      <PageHeader section="ADD ACCOUNT" subtitle="Connect a funded account to start tracking" />
 
       <div className="card">
         <form onSubmit={handleSubmit} className="space-y-5">

@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { getAllFirms } from '@/lib/firms'
 import { formatDrawdownType } from '@/lib/format'
+import PageHeader from '@/components/PageHeader'
 
 export default async function ArchivedAccountsPage() {
   const supabase = await createClient()
@@ -19,15 +20,17 @@ export default async function ArchivedAccountsPage() {
 
   return (
     <div>
-      <div className="text-xs text-dim tracking-widest mb-1">
-        <Link href="/dashboard" className="hover:text-green transition-colors">MY ACCOUNTS</Link>
-        <span className="mx-2">›</span>
-        <span>ARCHIVED</span>
-      </div>
-      <h1 className="font-display text-3xl tracking-[3px] text-white mb-1">ARCHIVED ACCOUNTS</h1>
-      <p className="text-xs text-muted mb-6">
-        {accounts?.length || 0} archived account{accounts?.length !== 1 ? 's' : ''} — these don't count toward your account limit and won't show on your main dashboard.
-      </p>
+      <PageHeader
+        breadcrumb={
+          <>
+            <Link href="/dashboard" className="hover:text-green transition-colors">MY ACCOUNTS</Link>
+            <span className="mx-2">›</span>
+            <span>ARCHIVED</span>
+          </>
+        }
+        section="ARCHIVED"
+        subtitle={`${accounts?.length || 0} archived account${accounts?.length !== 1 ? 's' : ''} — these don't count toward your account limit and won't show on your main dashboard.`}
+      />
 
       {accounts && accounts.length > 0 ? (
         <div className="grid gap-3 sm:grid-cols-2">

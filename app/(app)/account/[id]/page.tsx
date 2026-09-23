@@ -11,6 +11,7 @@ import TradingCalendar from '@/components/TradingCalendar'
 import BalanceChart from '@/components/BalanceChart'
 import DailyTargetSlider from '@/components/DailyTargetSlider'
 import ArchiveButton from '@/components/ArchiveButton'
+import PageHeader from '@/components/PageHeader'
 
 function fmt(n: number)  { return (n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString() }
 function fmtS(n: number) { return (n > 0 ? '+$' : n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString() }
@@ -95,19 +96,20 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
 
   return (
     <div>
-      {/* Breadcrumb + actions */}
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-        <div>
-          <div className="text-xs text-dim tracking-widest mb-1">
+      <PageHeader
+        breadcrumb={
+          <>
             <Link href="/dashboard" className="hover:text-green transition-colors">MY ACCOUNTS</Link>
             <span className="mx-2">›</span>
             <span>{account.nickname || `${(account.size/1000).toFixed(0)}K Account`}</span>
-          </div>
-          <h1 className="font-display text-3xl tracking-[3px] text-white">
-            {account.nickname || `${(account.size/1000).toFixed(0)}K ACCOUNT`}
+          </>
+        }
+        section={account.nickname || `${(account.size/1000).toFixed(0)}K ACCOUNT`}
+        badges={
+          <>
             {account.status !== 'active' && (
               <span
-                className={`ml-3 align-middle text-xs tracking-widest uppercase px-2 py-1 rounded border ${
+                className={`text-xs tracking-widest uppercase px-2 py-1 rounded border ${
                   account.status === 'passed'
                     ? 'border-green text-green bg-green/10'
                     : 'border-danger text-danger bg-danger/10'
@@ -117,62 +119,66 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
               </span>
             )}
             {!account.is_active && (
-              <span className="ml-3 align-middle text-xs tracking-widest uppercase px-2 py-1 rounded border border-dim text-dim bg-dim/10">
+              <span className="text-xs tracking-widest uppercase px-2 py-1 rounded border border-dim text-dim bg-dim/10">
                 🗄 Archived
               </span>
             )}
-          </h1>
-          <p className="text-xs text-muted mt-0.5">
+          </>
+        }
+        subtitle={
+          <>
             {config?.firmName || account.firm_id} · {formatDrawdownType(account.drawdown_type)} · <span className="font-bold uppercase text-white">{account.version}</span>
             {account.account_number && <> · {account.account_number}</>}
-          </p>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          <Link href={`/account/${account.id}/history`} className="btn">📋 History</Link>
-          <Link
-            href={`/account/${account.id}/log`}
-            className="btn border-green text-green hover:bg-green/10"
-          >
-            ✏️ Log Session
-          </Link>
-          {account.status === 'active' ? (
-            <>
+          </>
+        }
+        actions={
+          <>
+            <Link href={`/account/${account.id}/history`} className="btn">📋 History</Link>
+            <Link
+              href={`/account/${account.id}/log`}
+              className="btn border-green text-green hover:bg-green/10"
+            >
+              ✏️ Log Session
+            </Link>
+            {account.status === 'active' ? (
+              <>
+                <form action={`/api/accounts/${account.id}/status`} method="POST">
+                  <input type="hidden" name="status" value="passed" />
+                  <button type="submit" className="btn border-green text-green hover:bg-green/10">
+                    ✓ Mark Passed
+                  </button>
+                </form>
+                <form action={`/api/accounts/${account.id}/status`} method="POST">
+                  <input type="hidden" name="status" value="breached" />
+                  <button type="submit" className="btn border-danger text-danger hover:bg-danger/10">
+                    ✕ Mark Breached
+                  </button>
+                </form>
+              </>
+            ) : (
               <form action={`/api/accounts/${account.id}/status`} method="POST">
-                <input type="hidden" name="status" value="passed" />
-                <button type="submit" className="btn border-green text-green hover:bg-green/10">
-                  ✓ Mark Passed
+                <input type="hidden" name="status" value="active" />
+                <button type="submit" className="btn">↺ Reactivate</button>
+              </form>
+            )}
+            {/* Archive/Restore — available regardless of status (see
+                app/api/accounts/[id]/archive/route.ts's own comment on why
+                'passed' isn't treated as "done" the way 'breached' is). Not
+                nested in the status branch above: a still-active account can
+                be archived too, per that same decision. */}
+            {account.is_active ? (
+              <ArchiveButton accountId={account.id} title="Move to Archived Accounts — you can restore it anytime" />
+            ) : (
+              <form action={`/api/accounts/${account.id}/archive`} method="POST">
+                <input type="hidden" name="active" value="true" />
+                <button type="submit" className="btn border-blue text-blue hover:bg-blue/10">
+                  ↺ Restore from Archive
                 </button>
               </form>
-              <form action={`/api/accounts/${account.id}/status`} method="POST">
-                <input type="hidden" name="status" value="breached" />
-                <button type="submit" className="btn border-danger text-danger hover:bg-danger/10">
-                  ✕ Mark Breached
-                </button>
-              </form>
-            </>
-          ) : (
-            <form action={`/api/accounts/${account.id}/status`} method="POST">
-              <input type="hidden" name="status" value="active" />
-              <button type="submit" className="btn">↺ Reactivate</button>
-            </form>
-          )}
-          {/* Archive/Restore — available regardless of status (see
-              app/api/accounts/[id]/archive/route.ts's own comment on why
-              'passed' isn't treated as "done" the way 'breached' is). Not
-              nested in the status branch above: a still-active account can
-              be archived too, per that same decision. */}
-          {account.is_active ? (
-            <ArchiveButton accountId={account.id} title="Move to Archived Accounts — you can restore it anytime" />
-          ) : (
-            <form action={`/api/accounts/${account.id}/archive`} method="POST">
-              <input type="hidden" name="active" value="true" />
-              <button type="submit" className="btn border-blue text-blue hover:bg-blue/10">
-                ↺ Restore from Archive
-              </button>
-            </form>
-          )}
-        </div>
-      </div>
+            )}
+          </>
+        }
+      />
 
       {/* My Rules — global reminders (also editable from the dashboard) plus
           an optional list specific to this account/firm. Shown regardless

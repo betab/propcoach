@@ -10,7 +10,7 @@ import {
   loadActiveAccountMetrics, classifyOrbs, computePortfolioSummary, deriveDailyPortfolioPnl,
   computeLeftRailStats, computeArchiveSummary, buildPayoutLog, deriveConsistencyWatch,
 } from '@/lib/performance'
-import PerformanceHeader from '@/components/PerformanceHeader'
+import PageHeader from '@/components/PageHeader'
 import LeftRail, { type StatTile } from '@/components/LeftRail'
 import OrbitalHero from '@/components/OrbitalHero'
 import PnlWaveformPanel from '@/components/SignalPanels/PnlWaveformPanel'
@@ -99,9 +99,9 @@ export default async function HomePage() {
 
   return (
     <div>
-      <PerformanceHeader section="PERFORMANCE" legend={legend} showAddMetric />
+      <PageHeader section="PERFORMANCE" actions={legend} showAddMetric />
 
-      <div className="flex gap-5 mt-6 flex-wrap lg:flex-nowrap">
+      <div className="flex gap-5 flex-wrap lg:flex-nowrap">
         <LeftRail tiles={tiles} />
         <div className="flex-1 min-w-0">
           <OrbitalHero groups={orbGroups} portfolioSummary={portfolioSummary} archiveSummary={archiveSummary} firms={firms} />

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import PageHeader from '@/components/PageHeader'
 
 export default function BillingPage() {
   const [profile, setProfile] = useState<any>(null)
@@ -59,12 +60,16 @@ export default function BillingPage() {
 
   return (
     <div className="max-w-lg">
-      <div className="text-xs text-dim tracking-widest mb-1">
-        <Link href="/settings" className="hover:text-green transition-colors">SETTINGS</Link>
-        <span className="mx-2">›</span>
-        <span>BILLING</span>
-      </div>
-      <h1 className="font-display text-3xl tracking-[3px] text-white mb-6">BILLING</h1>
+      <PageHeader
+        breadcrumb={
+          <>
+            <Link href="/settings" className="hover:text-green transition-colors">SETTINGS</Link>
+            <span className="mx-2">›</span>
+            <span>BILLING</span>
+          </>
+        }
+        section="BILLING"
+      />
 
       {justUpgraded && (
         <div className="text-xs text-green bg-green/10 border border-green/30 rounded p-3 mb-4">

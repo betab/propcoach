@@ -3,6 +3,7 @@ import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import DeleteEntryButton from '@/components/DeleteEntryButton'
+import PageHeader from '@/components/PageHeader'
 import type { Entry } from '@/lib/firms/types'
 
 function fmtS(n: number) { return (n > 0 ? '+$' : n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString() }
@@ -40,9 +41,9 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <div className="text-xs text-dim tracking-widest mb-1">
+      <PageHeader
+        breadcrumb={
+          <>
             <Link href="/dashboard" className="hover:text-green transition-colors">MY ACCOUNTS</Link>
             <span className="mx-2">›</span>
             <Link href={`/account/${account.id}`} className="hover:text-green transition-colors">
@@ -50,17 +51,19 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
             </Link>
             <span className="mx-2">›</span>
             <span>History</span>
-          </div>
-          <h1 className="font-display text-3xl tracking-[3px] text-white">SESSION HISTORY</h1>
-          <p className="text-xs text-muted mt-1">{entries.length} sessions logged</p>
-        </div>
-        <Link
-          href={`/account/${account.id}/log`}
-          className="btn border-green text-green hover:bg-green/10"
-        >
-          ✏️ Log Session
-        </Link>
-      </div>
+          </>
+        }
+        section="HISTORY"
+        subtitle={`${entries.length} sessions logged`}
+        actions={
+          <Link
+            href={`/account/${account.id}/log`}
+            className="btn border-green text-green hover:bg-green/10"
+          >
+            ✏️ Log Session
+          </Link>
+        }
+      />
 
       {entries.length === 0 ? (
         <div className="card text-center py-12">
