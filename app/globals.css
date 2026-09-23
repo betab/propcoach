@@ -39,17 +39,26 @@ body {
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .orbital-spin { animation: spin 14s linear infinite; }
 
+/* A real breathing glow — blur+spread+alpha all grow together at the
+   midpoint, matching the approved mockup's own keyframe values exactly
+   (Combined_Home.dc.html's pulseGreen/pulseAmber). The previous version
+   of this keyframe was a "ping ripple" (spread animating 0->10px while
+   alpha simultaneously animated 0.55->0, so the shadow was either
+   zero-sized or fully transparent at every frame, never both visible at
+   once) — nearly imperceptible in practice, which is why the core's glow
+   still looked "off" after the first fix that merely applied this class;
+   the class itself needed fixing, not just applying. */
 @keyframes pulseGreen {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.55); }
-  50%      { box-shadow: 0 0 0 10px rgba(0, 255, 136, 0); }
+  0%, 100% { box-shadow: 0 0 12px 2px rgba(0, 255, 136, 0.55); }
+  50%      { box-shadow: 0 0 22px 6px rgba(0, 255, 136, 0.85); }
 }
 .pulse-green { animation: pulseGreen 2s ease-in-out infinite; }
 
 /* OrbitalHero.tsx's portfolio P&L core — a slower ambient heartbeat glow,
    colored to match the core's own border (green/red by P&L sign). */
 @keyframes pulseDanger {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.55); }
-  50%      { box-shadow: 0 0 0 10px rgba(255, 68, 68, 0); }
+  0%, 100% { box-shadow: 0 0 12px 2px rgba(255, 68, 68, 0.55); }
+  50%      { box-shadow: 0 0 22px 6px rgba(255, 68, 68, 0.85); }
 }
 .pulse-core-green  { animation: pulseGreen 3s ease-in-out infinite; }
 .pulse-core-danger { animation: pulseDanger 3s ease-in-out infinite; }
