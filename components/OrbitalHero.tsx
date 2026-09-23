@@ -135,13 +135,21 @@ export default function OrbitalHero({
       className="relative bg-black rounded-xl border border-border overflow-hidden w-full"
       style={{ aspectRatio: `${ASPECT_W} / ${ASPECT_H}` }}
     >
-      {/* radar sweep */}
+      {/* radar sweep — the outer div does the static translate(-50%,-50%)
+          centering (via circleStyle); the spin animation lives on the INNER
+          div instead of here. A CSS animation's `transform` fully replaces
+          the element's computed transform for its duration, so putting
+          `.orbital-spin`'s `rotate(...)` on the same element as the
+          centering translate discarded that translate the moment the
+          animation started — the box's top-left corner (not its center)
+          ended up sitting at the circle's center, producing an off-center
+          wedge confined to the bottom-right quadrant. */}
       <div
-        className="orbital-spin absolute pointer-events-none"
+        className="absolute pointer-events-none"
         style={circleStyle(OUTER_R_PCT * 2, 50, 50)}
       >
         <div
-          className="absolute inset-0 rounded-full"
+          className="orbital-spin absolute inset-0 rounded-full"
           style={{ background: 'conic-gradient(from 0deg, rgba(0,255,136,0.16), transparent 35%)' }}
         />
       </div>
