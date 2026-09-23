@@ -159,6 +159,17 @@ export function deriveDailyPortfolioPnl(allEntries: Entry[]): DailyPortfolioPoin
   })
 }
 
+// A single HUD rail tile — label/value/optional accent color. Lived in
+// components/LeftRail.tsx originally; moved here once PerformanceCustomizer
+// took over rendering the rail directly (drag-and-drop needs per-tile
+// control LeftRail's own markup didn't have) and LeftRail itself became
+// dead code.
+export interface StatTile {
+  label: string
+  value: string
+  color?: string
+}
+
 export interface LeftRailStats {
   mllLockedCount: number
   totalActiveCount: number

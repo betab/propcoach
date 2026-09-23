@@ -12,8 +12,6 @@ import {
   computeAvgDaysToLock, computeLargestDrawdown, computeCurrentStreak, computeAvgDailyPnl,
   deriveWinRateTrend, deriveBestWorstDayWeekly,
 } from '@/lib/performance'
-import PageHeader from '@/components/PageHeader'
-import LeftRail, { type StatTile } from '@/components/LeftRail'
 import OrbitalHero from '@/components/OrbitalHero'
 import PnlWaveformPanel from '@/components/SignalPanels/PnlWaveformPanel'
 import ConsistencyWatchPanel from '@/components/SignalPanels/ConsistencyWatchPanel'
@@ -21,6 +19,9 @@ import MllProgressPanel from '@/components/SignalPanels/MllProgressPanel'
 import PayoutLog from '@/components/SignalPanels/PayoutLog'
 import WinRateTrendPanel from '@/components/SignalPanels/WinRateTrendPanel'
 import BestWorstDayPanel from '@/components/SignalPanels/BestWorstDayPanel'
+import PerformanceCustomizer from '@/components/PerformanceCustomizer'
+import { sanitizeLayout, type MetricId } from '@/lib/metric-registry'
+import type { StatTile } from '@/lib/performance'
 
 function fmtSigned(n: number) {
   return (n < 0 ? '-$' : '+$') + Math.abs(Math.round(n)).toLocaleString()
@@ -30,10 +31,11 @@ export default async function HomePage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const [{ data: accountsRaw }, { data: entriesRaw }, { data: payoutsRaw }, firms] = await Promise.all([
+  const [{ data: accountsRaw }, { data: entriesRaw }, { data: payoutsRaw }, { data: profile }, firms] = await Promise.all([
     supabase.from('accounts').select('*').eq('user_id', user!.id).order('created_at'),
     supabase.from('entries').select('*').eq('user_id', user!.id).order('date', { ascending: true }),
     supabase.from('payouts').select('*').eq('user_id', user!.id).order('recorded_at', { ascending: false }),
+    supabase.from('profiles').select('performance_layout').eq('id', user!.id).single(),
     getAllFirms(supabase),
   ])
 
@@ -74,14 +76,14 @@ export default async function HomePage() {
 
   const lockingCount = railStats.totalActiveCount - railStats.mllLockedCount
 
-  const tiles: StatTile[] = [
-    { label: 'MLL Locked', value: `${railStats.mllLockedCount}/${railStats.totalActiveCount}`, color: '#00ff88' },
-    {
+  const railContent: Partial<Record<MetricId, StatTile>> = {
+    mll_locked: { label: 'MLL Locked', value: `${railStats.mllLockedCount}/${railStats.totalActiveCount}`, color: '#00ff88' },
+    payouts_to_date: {
       label: 'Payouts to Date',
       value: `${railStats.payoutsCount} · $${railStats.payoutsSum.toLocaleString(undefined, { maximumFractionDigits: 0 })}`,
       color: '#7aa3d4',
     },
-    {
+    consistency_all: {
       label: 'Consistency (All)',
       value: railStats.consistencyBlockedCount > 0
         ? `${railStats.consistencyBlockedCount} BLOCKED`
@@ -90,19 +92,30 @@ export default async function HomePage() {
           : 'OK',
       color: railStats.consistencyBlockedCount > 0 ? '#ff4444' : railStats.consistencyCloseCount > 0 ? '#ffaa00' : '#00ff88',
     },
-    { label: 'Avg Days to Lock', value: avgDaysToLock != null ? `${avgDaysToLock} Days` : '—' },
-    { label: 'Largest Drawdown', value: largestDrawdown < 0 ? fmtSigned(largestDrawdown) : '—', color: '#ff4444' },
-    {
+    avg_days_to_lock: { label: 'Avg Days to Lock', value: avgDaysToLock != null ? `${avgDaysToLock} Days` : '—' },
+    largest_drawdown: { label: 'Largest Drawdown', value: largestDrawdown < 0 ? fmtSigned(largestDrawdown) : '—', color: '#ff4444' },
+    current_streak: {
       label: 'Current Streak',
       value: currentStreak ? `${currentStreak.days}d ${currentStreak.direction === 'win' ? 'Win' : 'Loss'}` : '—',
       color: currentStreak ? (currentStreak.direction === 'win' ? '#00ff88' : '#ff4444') : undefined,
     },
-    {
+    avg_daily_pnl: {
       label: 'Avg Daily P&L',
       value: entries.length > 0 ? fmtSigned(avgDailyPnl) : '—',
       color: avgDailyPnl >= 0 ? '#00ff88' : '#ff4444',
     },
-  ]
+  }
+
+  const detailContent: Partial<Record<MetricId, React.ReactNode>> = {
+    pnl_waveform: <PnlWaveformPanel data={dailyPnl} />,
+    consistency_watch: <ConsistencyWatchPanel data={consistencyWatch} />,
+    mll_progress: <MllProgressPanel accounts={ok} />,
+    payout_log: <PayoutLog entries={payoutLog} />,
+    win_rate_trend: <WinRateTrendPanel data={winRateTrend} />,
+    best_worst_weekly: <BestWorstDayPanel data={bestWorstWeekly} />,
+  }
+
+  const { rail: railOrder, detail: detailOrder } = sanitizeLayout(profile?.performance_layout as { rail?: unknown; detail?: unknown } | null)
 
   const legend = (
     <div className="flex items-center gap-4 text-[10px] tracking-widest uppercase text-muted">
@@ -124,29 +137,14 @@ export default async function HomePage() {
   )
 
   return (
-    <div>
-      <PageHeader section="PERFORMANCE" actions={legend} showAddMetric />
-
-      <div className="flex gap-5 flex-wrap lg:flex-nowrap">
-        <LeftRail tiles={tiles} />
-        <div className="flex-1 min-w-0">
-          <OrbitalHero groups={orbGroups} portfolioSummary={portfolioSummary} archiveSummary={archiveSummary} firms={firms} />
-        </div>
-      </div>
-
-      <div className="mt-4">
-        <div className="text-[10px] text-dim tracking-[3px] uppercase pt-4 mb-4 border-t border-border">The Signal — Detail</div>
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          <PnlWaveformPanel data={dailyPnl} />
-          <ConsistencyWatchPanel data={consistencyWatch} />
-          <MllProgressPanel accounts={ok} />
-          <WinRateTrendPanel data={winRateTrend} />
-          <BestWorstDayPanel data={bestWorstWeekly} />
-        </div>
-        <div className="mt-5">
-          <PayoutLog entries={payoutLog} />
-        </div>
-      </div>
-    </div>
+    <PerformanceCustomizer
+      userId={user!.id}
+      initialRailOrder={railOrder}
+      initialDetailOrder={detailOrder}
+      railContent={railContent}
+      detailContent={detailContent}
+      legendSlot={legend}
+      heroSlot={<OrbitalHero groups={orbGroups} portfolioSummary={portfolioSummary} archiveSummary={archiveSummary} firms={firms} />}
+    />
   )
 }
