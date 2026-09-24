@@ -97,6 +97,23 @@ export interface ImportedDay {
   pnlDelta?:       number
 }
 
+// ── Serialization helpers ────────────────────────────────────────────────────
+// The write path (PR 2) sends the raw per-day aggregation — not the
+// resolved preview — to the server, which re-fetches the account/entries
+// fresh and recomputes buildImportPreview itself rather than trusting
+// whatever the client's (possibly stale) preview screen showed. A Map
+// isn't JSON-serializable, so these convert to/from a plain array at the
+// client/server boundary; both sides otherwise share this same module.
+export type ImportedDayEntry = { date: string } & ImportedDay
+
+export function daysMapToArray(days: Map<string, ImportedDay>): ImportedDayEntry[] {
+  return [...days.entries()].map(([date, day]) => ({ date, ...day }))
+}
+
+export function daysArrayToMap(entries: ImportedDayEntry[]): Map<string, ImportedDay> {
+  return new Map(entries.map(({ date, ...day }) => [date, day]))
+}
+
 export interface AggregationResult {
   days:          Map<string, ImportedDay>
   unparsedCount: number

@@ -15,7 +15,7 @@ import PageHeader from '@/components/PageHeader'
 import { parseCsv } from '@/lib/import/csv'
 import {
   detectColumns, guessMode, parseStatementRows, parseTradeLevelRows, buildImportPreview,
-  type ImportMode, type PreviewRow,
+  daysMapToArray, type ImportMode, type PreviewRow, type ImportedDay,
 } from '@/lib/import/parseImportFile'
 
 function fmt(n: number)  { return (n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString() }
@@ -40,21 +40,24 @@ export default function ImportPage() {
   const [pnlColumn,        setPnlColumn]         = useState('')
   const [commissionColumn, setCommissionColumn]  = useState('')
 
-  useEffect(() => {
-    async function load() {
-      // Same session-hydration-race guard as log/page.tsx — see that
-      // file's comment for the full explanation.
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-      const { data: acc } = await supabase
-        .from('accounts').select('*').eq('id', accountId).eq('user_id', user.id).single()
-      const { data: ent } = await supabase
-        .from('entries').select('*').eq('account_id', accountId).order('date', { ascending: true })
-      setAccount(acc as Account)
-      setEntries((ent || []) as Entry[])
-    }
-    load()
-  }, [accountId])
+  const [importing,    setImporting]    = useState(false)
+  const [importError,  setImportError]  = useState('')
+  const [importResult, setImportResult] = useState<{ imported: number; overwritten: number; created: number } | null>(null)
+
+  async function loadAccountAndEntries() {
+    // Same session-hydration-race guard as log/page.tsx — see that
+    // file's comment for the full explanation.
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { data: acc } = await supabase
+      .from('accounts').select('*').eq('id', accountId).eq('user_id', user.id).single()
+    const { data: ent } = await supabase
+      .from('entries').select('*').eq('account_id', accountId).order('date', { ascending: true })
+    setAccount(acc as Account)
+    setEntries((ent || []) as Entry[])
+  }
+
+  useEffect(() => { loadAccountAndEntries() }, [accountId])
 
   async function handleFile(file: File) {
     setFileError('')
@@ -78,12 +81,11 @@ export default function ImportPage() {
     setMode(guessMode(body, headerRow.indexOf(detected.date ?? '')))
   }
 
-  const { preview, unparsedCount, ready } = useMemo(() => {
-    if (!account || headers.length === 0 || !dateColumn) {
-      return { preview: [] as PreviewRow[], unparsedCount: 0, ready: false }
-    }
-    if (mode === 'statement' && !balanceColumn) return { preview: [], unparsedCount: 0, ready: false }
-    if (mode === 'trade_level' && !pnlColumn)   return { preview: [], unparsedCount: 0, ready: false }
+  const { preview, unparsedCount, ready, importedDays } = useMemo(() => {
+    const empty = { preview: [] as PreviewRow[], unparsedCount: 0, ready: false, importedDays: new Map<string, ImportedDay>() }
+    if (!account || headers.length === 0 || !dateColumn) return empty
+    if (mode === 'statement' && !balanceColumn) return empty
+    if (mode === 'trade_level' && !pnlColumn)   return empty
 
     const agg = mode === 'statement'
       ? parseStatementRows(dataRows, headers, { dateColumn, balanceColumn })
@@ -94,11 +96,43 @@ export default function ImportPage() {
       entries.map(e => ({ date: e.date, closing_balance: e.closing_balance })),
       agg.days
     )
-    return { preview: rows, unparsedCount: agg.unparsedCount, ready: true }
+    return { preview: rows, unparsedCount: agg.unparsedCount, ready: true, importedDays: agg.days }
   }, [account, entries, headers, dataRows, mode, dateColumn, balanceColumn, pnlColumn, commissionColumn])
 
   const overwriteCount = preview.filter(r => r.willOverwrite).length
   const newCount = preview.length - overwriteCount
+
+  async function handleImport() {
+    if (preview.length === 0) return
+    const confirmed = window.confirm(
+      overwriteCount > 0
+        ? `Import ${preview.length} day(s)? This will overwrite ${overwriteCount} existing entr${overwriteCount === 1 ? 'y' : 'ies'} — the old closing balance/P&L for those dates cannot be recovered afterward.`
+        : `Import ${preview.length} new day(s)?`
+    )
+    if (!confirmed) return
+
+    setImporting(true)
+    setImportError('')
+    setImportResult(null)
+    try {
+      const res = await fetch(`/api/accounts/${accountId}/import`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ days: daysMapToArray(importedDays) }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setImportError(data.error || 'Import failed.')
+        return
+      }
+      setImportResult(data)
+      await loadAccountAndEntries()  // refresh so the preview reflects the newly-written entries
+    } catch {
+      setImportError('Import failed — check your connection and try again.')
+    } finally {
+      setImporting(false)
+    }
+  }
 
   if (!account) {
     return <div className="text-muted text-sm">Loading…</div>
@@ -245,9 +279,32 @@ export default function ImportPage() {
             </div>
           )}
 
-          <div className="text-xs text-dim bg-bg2 border border-border rounded p-3 mt-4">
-            Nothing has been saved yet — the write path (import &amp; overwrite) ships in a follow-up PR.
-          </div>
+          {importResult ? (
+            <div className="text-xs text-green bg-green/10 border border-green/30 rounded p-3 mt-4">
+              Imported {importResult.imported} day{importResult.imported === 1 ? '' : 's'}
+              {importResult.created > 0 && <> · {importResult.created} new</>}
+              {importResult.overwritten > 0 && <> · {importResult.overwritten} overwritten</>}
+              . <Link href={`/account/${accountId}`} className="underline hover:text-white">View account →</Link>
+            </div>
+          ) : (
+            <>
+              {importError && (
+                <div className="text-xs text-danger bg-danger/10 border border-danger/30 rounded p-3 mt-4">{importError}</div>
+              )}
+              <div className="flex items-center gap-3 mt-4">
+                <button
+                  type="button"
+                  onClick={handleImport}
+                  disabled={importing || preview.length === 0}
+                  className="btn-primary"
+                  style={{ width: 'auto', padding: '10px 24px' }}
+                >
+                  {importing ? 'Importing…' : `Import ${overwriteCount > 0 ? '& Overwrite ' : ''}${preview.length} Day${preview.length === 1 ? '' : 's'} →`}
+                </button>
+                <span className="text-xs text-dim">Nothing is saved until you confirm.</span>
+              </div>
+            </>
+          )}
         </div>
       )}
 
