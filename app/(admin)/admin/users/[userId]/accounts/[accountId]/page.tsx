@@ -8,6 +8,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAllFirms, getFirmVersions } from '@/lib/firms'
+import ResetAccountButton from '@/components/ResetAccountButton'
 
 function fmt(n: number) {
   return (n < 0 ? '-$' : '$') + Math.abs(Math.round(n)).toLocaleString()
@@ -208,6 +209,22 @@ export default async function AdminUserAccountPage({
         ) : (
           <div className="text-xs text-dim">No entries logged yet.</div>
         )}
+      </div>
+
+      {/* Reset — wipes entries/payouts back to a clean slate, keeps the
+          account shell (firm/size/drawdown config, nickname, etc.). Logged
+          to admin_action_log. Distinct from deleting the user entirely
+          (that's on the user page, not per-account). */}
+      <div className="card mt-4 border-amber/30">
+        <div className="stat-label mb-1">Reset Account</div>
+        <p className="text-xs text-muted mb-3">
+          Wipes all entries and payouts, resets status to active and payout count to 0. The account itself (firm, size, drawdown config) is kept — this is not a delete.
+        </p>
+        <ResetAccountButton
+          userId={userId}
+          accountId={accountId}
+          accountLabel={account.nickname || `${(account.size / 1000).toFixed(0)}K account`}
+        />
       </div>
     </div>
   )
