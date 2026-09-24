@@ -134,6 +134,7 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
         actions={
           <>
             <Link href={`/account/${account.id}/history`} className="btn">📋 History</Link>
+            <Link href={`/account/${account.id}/import`} className="btn">📥 Import</Link>
             <Link
               href={`/account/${account.id}/log`}
               className="btn border-green text-green hover:bg-green/10"
